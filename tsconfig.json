@@ -2,7 +2,7 @@
   "compilerOptions": {
     "module": "NodeNext",
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
     "moduleResolution": "NodeNext",
     "strict": true,
     "sourceMap": true,
@@ -11,5 +11,10 @@
     "types": ["node", "vscode"],
     "skipLibCheck": true
   },
-  "include": ["extension", "webview/src", "webview/vite.config.ts", "esbuild.ts"]
+  "include": [
+    "extension",
+    "webview/src",
+    "webview/vite.config.ts",
+    "esbuild.ts"
+  ]
 }

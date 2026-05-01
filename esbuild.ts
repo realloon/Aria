@@ -17,7 +17,7 @@ const config: import('esbuild').BuildOptions = {
   target: 'node20',
 }
 
-async function main(): Promise<void> {
+async function main() {
   if (watch) {
     const context = await esbuild.context(config)
     await context.watch()
