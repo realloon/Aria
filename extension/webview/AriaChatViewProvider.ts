@@ -1,24 +1,38 @@
 import * as vscode from 'vscode'
-import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
+import type {
+  ChatCompletionAssistantMessageParam,
+  ChatCompletionMessageParam,
+  ChatCompletionMessageToolCall,
+} from 'openai/resources/chat/completions'
 import { streamChat } from '../model/ModelApiClient.js'
+import {
+  builtinToolDefinitions,
+  executeBuiltinTool,
+} from '../tools/BuiltinTools.js'
 
-type WebviewMessage =
-  | { type: 'ready' }
-  | { type: 'sendMessage'; text: string }
+type WebviewMessage = { type: 'ready' } | { type: 'sendMessage'; text: string }
 
 export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'aria.chatView'
 
-  private readonly messages: ChatCompletionMessageParam[] = [
-    {
-      role: 'system',
-      content:
-        'You are Aria, a concise programming agent inside VS Code. Help with code, explain tradeoffs, and ask for missing context only when necessary.',
-    },
-  ]
+  private readonly messages: ChatCompletionMessageParam[] = []
   private webviewView?: vscode.WebviewView
 
   constructor(private readonly context: vscode.ExtensionContext) {}
+
+  async showSystemPrompt(): Promise<void> {
+    const systemMessage = await this.getSystemMessage()
+    const content =
+      typeof systemMessage.content === 'string'
+        ? systemMessage.content
+        : JSON.stringify(systemMessage.content, null, 2)
+    const document = await vscode.workspace.openTextDocument({
+      content,
+      language: 'markdown',
+    })
+
+    await vscode.window.showTextDocument(document, { preview: false })
+  }
 
   resolveWebviewView(webviewView: vscode.WebviewView): void {
     this.webviewView = webviewView
@@ -79,31 +93,21 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       return
     }
 
+    const messageStartIndex = this.messages.length
     this.messages.push({ role: 'user', content: userText })
     await this.postMessage({ type: 'loading', loading: true })
 
     try {
-      let responseText = ''
-
       await this.postMessage({ type: 'assistantMessageStart' })
 
-      for await (const delta of streamChat({ apiKey, baseUrl, model }, this.messages)) {
-        if (delta.type === 'content') {
-          responseText += delta.text
-        }
-
-        await this.postMessage({
-          type:
-            delta.type === 'reasoning'
-              ? 'assistantReasoningDelta'
-              : 'assistantMessageDelta',
-          text: delta.text,
-        })
-      }
-
-      this.messages.push({ role: 'assistant', content: responseText })
+      const turnMessages = await this.runAssistantTurn({
+        apiKey,
+        baseUrl,
+        model,
+      })
+      this.messages.push(...turnMessages)
     } catch (error) {
-      this.messages.pop()
+      this.messages.splice(messageStartIndex)
       await this.postError(
         error instanceof Error ? error.message : 'Model request failed.',
       )
@@ -116,8 +120,160 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     await this.postMessage({ type: 'error', message })
   }
 
+  private async runAssistantTurn(config: {
+    apiKey: string
+    baseUrl: string
+    model: string
+  }): Promise<ChatCompletionMessageParam[]> {
+    const maxToolRounds = 5
+    const turnMessages: ChatCompletionMessageParam[] = []
+    const toolContext = this.getToolContext()
+    const tools = toolContext ? builtinToolDefinitions : []
+
+    for (let round = 0; round < maxToolRounds; round += 1) {
+      let responseText = ''
+      let toolCalls: ChatCompletionMessageToolCall[] = []
+      const messages = [
+        await this.getSystemMessage(),
+        ...this.messages,
+        ...turnMessages,
+      ] satisfies ChatCompletionMessageParam[]
+
+      for await (const delta of streamChat(config, messages, tools)) {
+        if (delta.type === 'content') {
+          responseText += delta.text
+          await this.postMessage({
+            type: 'assistantMessageDelta',
+            text: delta.text,
+          })
+          continue
+        }
+
+        if (delta.type === 'reasoning') {
+          await this.postMessage({
+            type: 'assistantReasoningDelta',
+            text: delta.text,
+          })
+          continue
+        }
+
+        toolCalls = delta.toolCalls
+      }
+
+      if (toolCalls.length === 0) {
+        turnMessages.push({ role: 'assistant', content: responseText })
+        return turnMessages
+      }
+
+      const assistantMessage: ChatCompletionAssistantMessageParam = {
+        role: 'assistant',
+        content: responseText || null,
+        tool_calls: toolCalls,
+      }
+      turnMessages.push(assistantMessage)
+
+      if (!toolContext) {
+        throw new Error('Open a workspace before using tools.')
+      }
+
+      for (const toolCall of toolCalls) {
+        if (toolCall.type !== 'function') {
+          turnMessages.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: JSON.stringify({
+              ok: false,
+              error: `Unsupported tool call type: ${toolCall.type}`,
+            }),
+          })
+          continue
+        }
+
+        const content = await executeBuiltinTool(
+          toolCall.function.name,
+          toolCall.function.arguments,
+          toolContext,
+        )
+
+        turnMessages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content,
+        })
+      }
+    }
+
+    throw new Error('Stopped after too many tool call rounds.')
+  }
+
   private async postMessage(message: unknown): Promise<void> {
     await this.webviewView?.webview.postMessage(message)
+  }
+
+  private async getSystemMessage(): Promise<ChatCompletionMessageParam> {
+    const identityContent = await this.readIdentityInstructions()
+    const agentsContent = await this.readAgentsInstructions()
+
+    return {
+      role: 'system',
+      content: this.buildSystemPrompt(identityContent, agentsContent),
+    }
+  }
+
+  private buildSystemPrompt(
+    identityContent: string,
+    agentsContent: string | undefined,
+  ): string {
+    const repositoryInstructions = agentsContent
+      ? `\n  <repository_instructions><![CDATA[\n${agentsContent}\n  ]]></repository_instructions>`
+      : ''
+
+    return `<system_prompt>
+  <identity><![CDATA[
+${identityContent}
+  ]]></identity>${repositoryInstructions}
+</system_prompt>`
+  }
+
+  private async readIdentityInstructions(): Promise<string> {
+    const identityUri = vscode.Uri.joinPath(
+      this.context.extensionUri,
+      'resources',
+      'identity.md',
+    )
+    const content = await vscode.workspace.fs.readFile(identityUri)
+
+    return new TextDecoder('utf-8').decode(content).trim()
+  }
+
+  private async readAgentsInstructions(): Promise<string | undefined> {
+    const workspaceFolder = this.getCurrentWorkspaceFolder()
+
+    if (!workspaceFolder) {
+      return undefined
+    }
+
+    const agentsUri = vscode.Uri.joinPath(workspaceFolder.uri, 'AGENTS.md')
+
+    try {
+      const content = await vscode.workspace.fs.readFile(agentsUri)
+      return new TextDecoder('utf-8').decode(content).trim()
+    } catch (error) {
+      if (error instanceof vscode.FileSystemError) {
+        return undefined
+      }
+
+      throw error
+    }
+  }
+
+  private getCurrentWorkspaceFolder(): vscode.WorkspaceFolder | undefined {
+    return vscode.workspace.workspaceFolders?.[0]
+  }
+
+  private getToolContext(): { cwd: string } | undefined {
+    const workspaceFolder = this.getCurrentWorkspaceFolder()
+    return workspaceFolder ? { cwd: workspaceFolder.uri.fsPath } : undefined
   }
 
   private getHtml(webview: vscode.Webview): string {

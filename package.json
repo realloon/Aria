@@ -56,13 +56,13 @@
     },
     "commands": [
       {
-        "command": "aria.helloWorld",
-        "title": "Aria: Hello World"
-      },
-      {
         "command": "aria.openSettings",
         "title": "Aria: Open Settings",
         "icon": "$(settings-gear)"
+      },
+      {
+        "command": "aria.showSystemPrompt",
+        "title": "Aria: Show System Prompt"
       }
     ],
     "menus": {

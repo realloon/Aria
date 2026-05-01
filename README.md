@@ -20,7 +20,7 @@ Run it in VS Code:
 
 1. Open this folder in VS Code.
 2. Press `F5` and choose `Run Extension`.
-3. In the Extension Development Host, run `Aria: Hello World` from the command palette.
+3. In the Extension Development Host, open the Aria activity bar item.
 
 ## Agent Chat
 
@@ -34,7 +34,5 @@ Before sending messages:
 
 ## Current Contribution
 
-- Command: `Aria: Hello World`
 - Command: `Aria: Open Settings`
 - View: `Aria > Chat`
-- Command id: `aria.helloWorld`
