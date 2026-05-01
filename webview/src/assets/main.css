@@ -9,7 +9,9 @@
   display: flex;
   flex-direction: column;
 
+  max-width: 720px;
   height: 100vh;
+  margin-inline: auto;
   min-width: 0;
 }
 

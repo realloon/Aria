@@ -22,8 +22,6 @@ const scrollHost = defineModel<HTMLElement | null>('scrollHost', {
       :reasoning="message.reasoning"
       :text="message.text"
     />
-
-    <!-- <AssistantMessage v-if="loading" text="Thinking..." /> -->
   </section>
 </template>
 
@@ -35,5 +33,11 @@ const scrollHost = defineModel<HTMLElement | null>('scrollHost', {
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
+
+  padding-right: 20px;
+  margin-right: -20px;
+  scrollbar-width: thin;
+
+  padding-bottom: 8px;
 }
 </style>

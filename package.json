@@ -17,6 +17,7 @@
     "check-types": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^20.14.10",
     "@types/vscode": "1.92.0",
     "@vitejs/plugin-vue": "^6.0.6",
@@ -26,6 +27,7 @@
     "vue": "^3.5.33"
   },
   "dependencies": {
+    "markdown-it": "^14.1.1",
     "openai": "^6.35.0"
   },
   "pnpm": {

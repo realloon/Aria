@@ -10,7 +10,6 @@ const {
   messages,
   scrollHost,
   sendMessage,
-  onKeydown,
 } = useChat()
 </script>
 
@@ -25,7 +24,6 @@ const {
     v-model="input"
     :can-send="canSend"
     :loading="loading"
-    @keydown="onKeydown"
     @send="sendMessage"
   />
 </template>

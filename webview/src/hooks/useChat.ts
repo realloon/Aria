@@ -27,13 +27,6 @@ export function useChat() {
     void scrollToEnd()
   }
 
-  function onKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault()
-      sendMessage()
-    }
-  }
-
   async function scrollToEnd(): Promise<void> {
     await nextTick()
     scrollHost.value?.scrollTo({
@@ -106,6 +99,5 @@ export function useChat() {
     messages,
     scrollHost,
     sendMessage,
-    onKeydown,
   }
 }

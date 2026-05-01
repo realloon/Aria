@@ -37,6 +37,7 @@ export async function* streamChat(
     model: config.model,
     messages,
     tools: tools.length > 0 ? tools : undefined,
+    parallel_tool_calls: tools.length > 0 ? true : undefined,
     stream: true,
     reasoning_effort: 'high',
     extra_body: {

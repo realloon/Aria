@@ -1,25 +1,41 @@
 <script setup lang="ts">
+import { nextTick, ref } from 'vue'
+
 defineProps<{
   canSend: boolean
   loading: boolean
 }>()
 
 const input = defineModel<string>({ required: true })
+const textarea = ref<HTMLTextAreaElement | null>(null)
 
-defineEmits<{
-  keydown: [event: KeyboardEvent]
+const emit = defineEmits<{
   send: []
 }>()
+
+async function submit(): Promise<void> {
+  emit('send')
+  await nextTick()
+  textarea.value?.focus()
+}
+
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    void submit()
+  }
+}
 </script>
 
 <template>
-  <form class="composer" @submit.prevent="$emit('send')">
+  <form class="composer" @submit.prevent="submit">
     <textarea
+      ref="textarea"
       v-model="input"
       rows="2"
       placeholder="Ask Aria..."
-      :disabled="loading"
-      @keydown="$emit('keydown', $event)"
+      :readonly="loading"
+      @keydown="onKeydown"
     />
 
     <footer>
@@ -45,13 +61,12 @@ defineEmits<{
 
 <style scoped>
 .composer {
-  /* border-top: 1px solid var(--vscode-sideBarSectionHeader-border); */
-
   display: flex;
   flex-direction: column;
   padding: 8px;
   border: 1px solid var(--vscode-focusBorder);
   border-radius: 6px;
+  margin-bottom: 6px;
 }
 
 .composer textarea {

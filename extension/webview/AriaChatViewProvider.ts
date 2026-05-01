@@ -2,6 +2,7 @@ import * as vscode from 'vscode'
 import type {
   ChatCompletionAssistantMessageParam,
   ChatCompletionMessageParam,
+  ChatCompletionToolMessageParam,
   ChatCompletionMessageToolCall,
 } from 'openai/resources/chat/completions'
 import { streamChat } from '../model/ModelApiClient.js'
@@ -9,6 +10,10 @@ import {
   builtinToolDefinitions,
   executeBuiltinTool,
 } from '../tools/BuiltinTools.js'
+
+type AssistantMessageWithReasoning = ChatCompletionAssistantMessageParam & {
+  reasoning_content?: string
+}
 
 type WebviewMessage = { type: 'ready' } | { type: 'sendMessage'; text: string }
 
@@ -132,6 +137,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
 
     for (let round = 0; round < maxToolRounds; round += 1) {
       let responseText = ''
+      let reasoningText = ''
       let toolCalls: ChatCompletionMessageToolCall[] = []
       const messages = [
         await this.getSystemMessage(),
@@ -150,6 +156,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
         }
 
         if (delta.type === 'reasoning') {
+          reasoningText += delta.text
           await this.postMessage({
             type: 'assistantReasoningDelta',
             text: delta.text,
@@ -161,49 +168,86 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       }
 
       if (toolCalls.length === 0) {
-        turnMessages.push({ role: 'assistant', content: responseText })
+        turnMessages.push(
+          this.createAssistantMessage({
+            content: responseText,
+            reasoningContent: reasoningText,
+          }),
+        )
         return turnMessages
       }
 
-      const assistantMessage: ChatCompletionAssistantMessageParam = {
-        role: 'assistant',
-        content: responseText || null,
-        tool_calls: toolCalls,
-      }
-      turnMessages.push(assistantMessage)
+      turnMessages.push(
+        this.createAssistantMessage({
+          content: responseText,
+          reasoningContent: reasoningText,
+          toolCalls,
+        }),
+      )
 
       if (!toolContext) {
         throw new Error('Open a workspace before using tools.')
       }
 
-      for (const toolCall of toolCalls) {
-        if (toolCall.type !== 'function') {
-          turnMessages.push({
-            role: 'tool',
-            tool_call_id: toolCall.id,
-            content: JSON.stringify({
-              ok: false,
-              error: `Unsupported tool call type: ${toolCall.type}`,
-            }),
-          })
-          continue
-        }
-
-        const content = await executeBuiltinTool(
-          toolCall.function.name,
-          toolCall.function.arguments,
-          toolContext,
-        )
-
-        turnMessages.push({
-          role: 'tool',
-          tool_call_id: toolCall.id,
-          content,
-        })
-      }
+      turnMessages.push(
+        ...(await Promise.all(
+          toolCalls.map(toolCall =>
+            this.executeToolCall(toolCall, toolContext),
+          ),
+        )),
+      )
     }
 
     throw new Error('Stopped after too many tool call rounds.')
+  }
+
+  private async executeToolCall(
+    toolCall: ChatCompletionMessageToolCall,
+    toolContext: { cwd: string },
+  ): Promise<ChatCompletionToolMessageParam> {
+    if (toolCall.type !== 'function') {
+      return {
+        role: 'tool',
+        tool_call_id: toolCall.id,
+        content: JSON.stringify({
+          ok: false,
+          error: `Unsupported tool call type: ${toolCall.type}`,
+        }),
+      }
+    }
+
+    const content = await executeBuiltinTool(
+      toolCall.function.name,
+      toolCall.function.arguments,
+      toolContext,
+    )
+
+    return {
+      role: 'tool',
+      tool_call_id: toolCall.id,
+      content,
+    }
+  }
+
+  private createAssistantMessage(options: {
+    content: string
+    reasoningContent: string
+    toolCalls?: ChatCompletionMessageToolCall[]
+  }): AssistantMessageWithReasoning {
+    const message: AssistantMessageWithReasoning = {
+      role: 'assistant',
+      content: options.content || null,
+    }
+
+    if (options.reasoningContent) {
+      message.reasoning_content = options.reasoningContent
+    }
+
+    if (options.toolCalls) {
+      message.tool_calls = options.toolCalls
+    }
+
+    return message
   }
 
   private async postMessage(message: unknown): Promise<void> {
