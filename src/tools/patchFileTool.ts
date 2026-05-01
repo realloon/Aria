@@ -1,5 +1,5 @@
-import fs from 'node:fs/promises'
 import type { BuiltinTool } from './types.js'
+import { readFile, writeFile } from 'node:fs/promises'
 import { getOptionalBoolean, getString, resolvePath } from './validation.js'
 
 export const patchFileTool: BuiltinTool = {
@@ -44,7 +44,7 @@ export const patchFileTool: BuiltinTool = {
       throw new Error('patch_file old_text cannot be empty.')
     }
 
-    const content = await fs.readFile(filePath, 'utf-8')
+    const content = await readFile(filePath, 'utf-8')
     const matches = content.split(oldText).length - 1
 
     if (matches === 0) {
@@ -61,7 +61,7 @@ export const patchFileTool: BuiltinTool = {
       ? content.split(oldText).join(newText)
       : content.replace(oldText, newText)
 
-    await fs.writeFile(filePath, nextContent, 'utf-8')
+    await writeFile(filePath, nextContent, 'utf-8')
 
     return {
       path: filePath,

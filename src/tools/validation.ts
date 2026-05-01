@@ -1,5 +1,5 @@
-import path from 'node:path'
 import type { JsonObject } from './types.js'
+import path from 'node:path'
 
 export function parseArgs(argsJson: string): JsonObject {
   const parsed = JSON.parse(argsJson || '{}') as unknown

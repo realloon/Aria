@@ -1,5 +1,5 @@
-import { exec } from 'node:child_process'
 import type { BuiltinTool } from './types.js'
+import { exec } from 'node:child_process'
 import { getOptionalNumber, getString, resolvePath } from './validation.js'
 
 export const runCommandTool: BuiltinTool = {
