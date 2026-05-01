@@ -1,5 +1,5 @@
-import { readFile } from 'node:fs/promises'
 import type { BuiltinTool } from './types.js'
+import { readFile } from 'node:fs/promises'
 import { getString, resolvePath } from './validation.js'
 
 export const readFileTool: BuiltinTool = {
