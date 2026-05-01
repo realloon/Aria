@@ -1,11 +1,10 @@
 import * as vscode from 'vscode'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
-import { completeChat } from '../model/ModelApiClient.js'
+import { streamChat } from '../model/ModelApiClient.js'
 
 type WebviewMessage =
   | { type: 'ready' }
   | { type: 'sendMessage'; text: string }
-  | { type: 'setApiKey' }
 
 export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'aria.chatView'
@@ -19,10 +18,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   ]
   private webviewView?: vscode.WebviewView
 
-  constructor(
-    private readonly context: vscode.ExtensionContext,
-    private readonly apiKeySecretKey: string,
-  ) {}
+  constructor(private readonly context: vscode.ExtensionContext) {}
 
   resolveWebviewView(webviewView: vscode.WebviewView): void {
     this.webviewView = webviewView
@@ -44,20 +40,12 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     })
   }
 
-  async refreshStatus(): Promise<void> {
-    await this.postStatus()
-  }
-
   private async handleMessage(message: WebviewMessage): Promise<void> {
     switch (message.type) {
       case 'ready':
-        await this.postStatus()
         return
       case 'sendMessage':
         await this.sendMessage(message.text)
-        return
-      case 'setApiKey':
-        await vscode.commands.executeCommand('aria.setApiKey')
         return
     }
   }
@@ -72,7 +60,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     const config = vscode.workspace.getConfiguration('aria.api')
     const baseUrl = config.get<string>('baseUrl')?.trim() ?? ''
     const model = config.get<string>('model')?.trim() ?? ''
-    const apiKey = await this.context.secrets.get(this.apiKeySecretKey)
+    const apiKey = config.get<string>('apiKey')?.trim() ?? ''
 
     if (!apiKey) {
       await this.postError('Set an API key before sending a message.')
@@ -95,12 +83,25 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     await this.postMessage({ type: 'loading', loading: true })
 
     try {
-      const responseText = await completeChat(
-        { apiKey, baseUrl, model },
-        this.messages,
-      )
+      let responseText = ''
+
+      await this.postMessage({ type: 'assistantMessageStart' })
+
+      for await (const delta of streamChat({ apiKey, baseUrl, model }, this.messages)) {
+        if (delta.type === 'content') {
+          responseText += delta.text
+        }
+
+        await this.postMessage({
+          type:
+            delta.type === 'reasoning'
+              ? 'assistantReasoningDelta'
+              : 'assistantMessageDelta',
+          text: delta.text,
+        })
+      }
+
       this.messages.push({ role: 'assistant', content: responseText })
-      await this.postMessage({ type: 'assistantMessage', text: responseText })
     } catch (error) {
       this.messages.pop()
       await this.postError(
@@ -109,16 +110,6 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     } finally {
       await this.postMessage({ type: 'loading', loading: false })
     }
-  }
-
-  private async postStatus(): Promise<void> {
-    const config = vscode.workspace.getConfiguration('aria.api')
-    await this.postMessage({
-      type: 'status',
-      baseUrl: config.get<string>('baseUrl') ?? '',
-      hasApiKey: Boolean(await this.context.secrets.get(this.apiKeySecretKey)),
-      model: config.get<string>('model') ?? '',
-    })
   }
 
   private async postError(message: string): Promise<void> {

@@ -1,11 +1,13 @@
 export interface ChatMessage {
   id: number
   role: 'user' | 'assistant'
+  reasoning?: string
   text: string
 }
 
 export type ExtensionMessage =
-  | { type: 'status'; hasApiKey: boolean; model: string; baseUrl: string }
-  | { type: 'assistantMessage'; text: string }
+  | { type: 'assistantMessageStart' }
+  | { type: 'assistantReasoningDelta'; text: string }
+  | { type: 'assistantMessageDelta'; text: string }
   | { type: 'error'; message: string }
   | { type: 'loading'; loading: boolean }

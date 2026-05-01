@@ -19,19 +19,21 @@ const scrollHost = defineModel<HTMLElement | null>('scrollHost', {
       v-for="message in messages"
       :key="message.id"
       :is="message.role === 'user' ? UserMessage : AssistantMessage"
+      :reasoning="message.reasoning"
       :text="message.text"
     />
 
-    <AssistantMessage v-if="loading" text="Thinking..." />
+    <!-- <AssistantMessage v-if="loading" text="Thinking..." /> -->
   </section>
 </template>
 
 <style scoped>
 .message-list {
+  flex-grow: 1;
+
   display: flex;
   flex-direction: column;
   gap: 12px;
-  /* padding: 12px; */
   overflow-y: auto;
 }
 </style>

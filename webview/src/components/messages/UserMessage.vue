@@ -12,10 +12,9 @@ defineProps<{
 
 <style scoped>
 .message {
-  align-self: end;
-
-  width: fit-content;
+  font-family: system-ui;
   background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-focusBorder);
   border-radius: 8px;
   padding: 6px 8px;
 }

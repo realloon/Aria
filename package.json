@@ -46,6 +46,11 @@
           "type": "string",
           "default": "",
           "description": "Model name used by the Aria chat panel."
+        },
+        "aria.api.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key used by Aria for model requests."
         }
       }
     },
@@ -55,14 +60,20 @@
         "title": "Aria: Hello World"
       },
       {
-        "command": "aria.setApiKey",
-        "title": "Aria: Set API Key"
-      },
-      {
-        "command": "aria.clearApiKey",
-        "title": "Aria: Clear API Key"
+        "command": "aria.openSettings",
+        "title": "Aria: Open Settings",
+        "icon": "$(settings-gear)"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "aria.openSettings",
+          "when": "view == aria.chatView",
+          "group": "navigation"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {

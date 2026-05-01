@@ -28,14 +28,13 @@ The Aria activity bar item opens the Agent Chat panel.
 
 Before sending messages:
 
-1. Run `Aria: Set API Key` from the command palette, or click `Key` in the chat panel.
+1. Configure `aria.api.apiKey` in VS Code Settings.
 2. Configure `aria.api.model` in VS Code Settings.
 3. Configure `aria.api.baseUrl` in VS Code Settings if you are not using the default OpenAI-compatible endpoint.
 
 ## Current Contribution
 
 - Command: `Aria: Hello World`
-- Command: `Aria: Set API Key`
-- Command: `Aria: Clear API Key`
+- Command: `Aria: Open Settings`
 - View: `Aria > Chat`
 - Command id: `aria.helloWorld`

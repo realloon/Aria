@@ -6,25 +6,10 @@ const vscode = acquireVsCodeApi()
 export function useChat() {
   const input = ref('')
   const loading = ref(false)
-  const hasApiKey = ref(false)
-  const model = ref('')
-  const baseUrl = ref('')
   const messages = ref<ChatMessage[]>([])
   const scrollHost = ref<HTMLElement | null>(null)
 
   const canSend = computed(() => input.value.trim().length > 0 && !loading.value)
-  const statusText = computed(() => {
-    if (!hasApiKey.value) {
-      return 'API key required'
-    }
-
-    if (!model.value) {
-      return 'Model not configured'
-    }
-
-    return model.value
-  })
-
   function sendMessage(): void {
     const text = input.value.trim()
 
@@ -40,10 +25,6 @@ export function useChat() {
     input.value = ''
     vscode.postMessage({ type: 'sendMessage', text })
     void scrollToEnd()
-  }
-
-  function setApiKey(): void {
-    vscode.postMessage({ type: 'setApiKey' })
   }
 
   function onKeydown(event: KeyboardEvent): void {
@@ -65,19 +46,35 @@ export function useChat() {
     const message = event.data as ExtensionMessage
 
     switch (message.type) {
-      case 'status':
-        hasApiKey.value = message.hasApiKey
-        model.value = message.model
-        baseUrl.value = message.baseUrl
-        return
-      case 'assistantMessage':
+      case 'assistantMessageStart':
         messages.value.push({
           id: Date.now(),
           role: 'assistant',
-          text: message.text,
+          reasoning: '',
+          text: '',
         })
         void scrollToEnd()
         return
+      case 'assistantReasoningDelta': {
+        const lastMessage = messages.value.at(-1)
+
+        if (lastMessage?.role === 'assistant') {
+          lastMessage.reasoning = `${lastMessage.reasoning ?? ''}${message.text}`
+        }
+
+        void scrollToEnd()
+        return
+      }
+      case 'assistantMessageDelta': {
+        const lastMessage = messages.value.at(-1)
+
+        if (lastMessage?.role === 'assistant') {
+          lastMessage.text += message.text
+        }
+
+        void scrollToEnd()
+        return
+      }
       case 'error':
         messages.value.push({
           id: Date.now(),
@@ -103,15 +100,12 @@ export function useChat() {
   })
 
   return {
-    baseUrl,
     canSend,
     input,
     loading,
     messages,
     scrollHost,
     sendMessage,
-    setApiKey,
-    statusText,
     onKeydown,
   }
 }

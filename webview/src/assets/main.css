@@ -5,6 +5,14 @@
   background: var(--vscode-sideBar-background);
 }
 
+#app {
+  display: flex;
+  flex-direction: column;
+
+  height: 100vh;
+  min-width: 0;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -22,7 +30,6 @@ textarea {
   font: inherit;
 }
 
-.actions button,
 .composer button {
   border: 1px solid var(--vscode-button-border, transparent);
   color: var(--vscode-button-foreground);
@@ -32,7 +39,6 @@ textarea {
   padding: 5px 8px;
 }
 
-.actions button:hover,
 .composer button:hover {
   background: var(--vscode-button-hoverBackground);
 }
