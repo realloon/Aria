@@ -7,22 +7,21 @@ export const runCommandTool: BuiltinTool = {
     type: 'function',
     function: {
       name: 'run_command',
-      description: 'Run a shell command in the workspace.',
+      description: 'Run a shell command.',
       parameters: {
         type: 'object',
         properties: {
           command: {
             type: 'string',
-            description: 'Shell command to execute.',
+            description: 'Command.',
           },
           cwd: {
             type: 'string',
-            description:
-              'Optional working directory. Relative paths resolve from the workspace root.',
+            description: 'Working directory.',
           },
           timeout_ms: {
             type: 'number',
-            description: 'Optional timeout in milliseconds. Defaults to 30000.',
+            description: 'Timeout in milliseconds.',
           },
         },
         required: ['command'],

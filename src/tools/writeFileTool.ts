@@ -8,25 +8,22 @@ export const writeFileTool: BuiltinTool = {
     type: 'function',
     function: {
       name: 'write_file',
-      description:
-        'Write UTF-8 text to a file. Supports overwrite and append modes.',
+      description: 'Write a text file.',
       parameters: {
         type: 'object',
         properties: {
           path: {
             type: 'string',
-            description:
-              'File path. Relative paths resolve from the workspace root.',
+            description: 'File path.',
           },
           content: {
             type: 'string',
-            description: 'Text content to write.',
+            description: 'File content.',
           },
           mode: {
             type: 'string',
             enum: ['overwrite', 'append'],
-            description:
-              'Use overwrite to replace the file, or append to add to it.',
+            description: 'Write mode.',
           },
         },
         required: ['path', 'content', 'mode'],

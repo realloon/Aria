@@ -7,26 +7,25 @@ export const patchFileTool: BuiltinTool = {
     type: 'function',
     function: {
       name: 'patch_file',
-      description: 'Patch part of a UTF-8 text file by replacing exact text.',
+      description: 'Replace text in a file.',
       parameters: {
         type: 'object',
         properties: {
           path: {
             type: 'string',
-            description:
-              'File path. Relative paths resolve from the workspace root.',
+            description: 'File path.',
           },
           old_text: {
             type: 'string',
-            description: 'Exact text to replace.',
+            description: 'Text to replace.',
           },
           new_text: {
             type: 'string',
-            description: 'Replacement text.',
+            description: 'New text.',
           },
           replace_all: {
             type: 'boolean',
-            description: 'Replace every match. Defaults to false.',
+            description: 'Replace all matches.',
           },
         },
         required: ['path', 'old_text', 'new_text'],

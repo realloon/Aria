@@ -7,14 +7,13 @@ export const readFileTool: BuiltinTool = {
     type: 'function',
     function: {
       name: 'read_file',
-      description: 'Read a UTF-8 text file from the workspace.',
+      description: 'Read a text file.',
       parameters: {
         type: 'object',
         properties: {
           path: {
             type: 'string',
-            description:
-              'File path. Relative paths resolve from the workspace root.',
+            description: 'File path.',
           },
         },
         required: ['path'],
