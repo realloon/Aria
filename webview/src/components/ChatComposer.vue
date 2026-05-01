@@ -24,3 +24,27 @@ defineEmits<{
     <button type="submit" :disabled="!canSend">Send</button>
   </form>
 </template>
+
+<style scoped>
+.composer {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--vscode-sideBarSectionHeader-border);
+}
+
+.composer textarea {
+  width: 100%;
+  min-height: 74px;
+  resize: vertical;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.composer textarea:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+</style>

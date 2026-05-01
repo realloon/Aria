@@ -9,13 +9,7 @@ export function useChat() {
   const hasApiKey = ref(false)
   const model = ref('')
   const baseUrl = ref('')
-  const messages = ref<ChatMessage[]>([
-    {
-      id: 1,
-      role: 'system',
-      text: 'Ask Aria about the current codebase, a design choice, or the next implementation step.',
-    },
-  ])
+  const messages = ref<ChatMessage[]>([])
   const scrollHost = ref<HTMLElement | null>(null)
 
   const canSend = computed(() => input.value.trim().length > 0 && !loading.value)

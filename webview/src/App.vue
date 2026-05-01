@@ -41,3 +41,12 @@ const {
     />
   </main>
 </template>
+
+<style scoped>
+.chat {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  min-width: 0;
+}
+</style>

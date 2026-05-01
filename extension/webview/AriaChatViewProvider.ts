@@ -1,5 +1,6 @@
 import * as vscode from 'vscode'
-import { ChatMessage, ModelApiClient } from '../model/ModelApiClient.js'
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
+import { completeChat } from '../model/ModelApiClient.js'
 
 type WebviewMessage =
   | { type: 'ready' }
@@ -9,8 +10,7 @@ type WebviewMessage =
 export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'aria.chatView'
 
-  private readonly modelApiClient = new ModelApiClient()
-  private readonly messages: ChatMessage[] = [
+  private readonly messages: ChatCompletionMessageParam[] = [
     {
       role: 'system',
       content:
@@ -95,7 +95,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     await this.postMessage({ type: 'loading', loading: true })
 
     try {
-      const responseText = await this.modelApiClient.complete(
+      const responseText = await completeChat(
         { apiKey, baseUrl, model },
         this.messages,
       )

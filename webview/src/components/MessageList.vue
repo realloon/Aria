@@ -1,28 +1,37 @@
 <script setup lang="ts">
 import type { ChatMessage } from '../types/chat.js'
+import AssistantMessage from './messages/AssistantMessage.vue'
+import UserMessage from './messages/UserMessage.vue'
 
 defineProps<{
   loading: boolean
   messages: ChatMessage[]
 }>()
 
-const scrollHost = defineModel<HTMLElement | null>('scrollHost', { required: true })
+const scrollHost = defineModel<HTMLElement | null>('scrollHost', {
+  required: true,
+})
 </script>
 
 <template>
-  <section ref="scrollHost" class="messages" aria-label="Chat messages">
-    <article
+  <section ref="scrollHost" class="message-list">
+    <component
       v-for="message in messages"
       :key="message.id"
-      class="message"
-      :class="`message-${message.role}`"
-    >
-      <div class="role">{{ message.role }}</div>
-      <p>{{ message.text }}</p>
-    </article>
-    <article v-if="loading" class="message message-assistant">
-      <div class="role">assistant</div>
-      <p>Thinking...</p>
-    </article>
+      :is="message.role === 'user' ? UserMessage : AssistantMessage"
+      :text="message.text"
+    />
+
+    <AssistantMessage v-if="loading" text="Thinking..." />
   </section>
 </template>
+
+<style scoped>
+.message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* padding: 12px; */
+  overflow-y: auto;
+}
+</style>

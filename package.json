@@ -4,11 +4,35 @@
   "description": "Programming agent extension scaffold for Aria.",
   "version": "0.1.0",
   "type": "module",
+  "main": "./dist/extension.js",
   "packageManager": "pnpm@10.33.2",
   "engines": {
     "vscode": "^1.92.0"
   },
-  "main": "./dist/extension.js",
+  "scripts": {
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "tsc --noEmit && vite build --config webview/vite.config.ts && node esbuild.ts",
+    "build:webview": "vite build --config webview/vite.config.ts",
+    "watch": "node esbuild.ts --watch",
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/vscode": "1.92.0",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "esbuild": "^0.28.0",
+    "typescript": "^5.5.4",
+    "vite": "^8.0.10",
+    "vue": "^3.5.33"
+  },
+  "dependencies": {
+    "openai": "^6.35.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
   "contributes": {
     "configuration": {
       "title": "Aria",
@@ -58,26 +82,5 @@
         }
       ]
     }
-  },
-  "scripts": {
-    "vscode:prepublish": "pnpm run compile",
-    "compile": "tsc --noEmit && vite build --config webview/vite.config.ts && node esbuild.ts",
-    "build:webview": "vite build --config webview/vite.config.ts",
-    "watch": "node esbuild.ts --watch",
-    "check-types": "tsc --noEmit"
-  },
-  "devDependencies": {
-    "@types/node": "^20.14.10",
-    "@types/vscode": "1.92.0",
-    "@vitejs/plugin-vue": "^6.0.6",
-    "esbuild": "^0.28.0",
-    "typescript": "^5.5.4",
-    "vite": "^8.0.10",
-    "vue": "^3.5.33"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
   }
 }

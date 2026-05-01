@@ -1,9 +1,5 @@
-export type ChatRole = 'user' | 'assistant' | 'system'
-
-export interface ChatMessage {
-  role: ChatRole
-  content: string
-}
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
+import OpenAI from 'openai'
 
 export interface ModelApiConfig {
   apiKey: string
@@ -11,51 +7,19 @@ export interface ModelApiConfig {
   model: string
 }
 
-interface ChatCompletionResponse {
-  choices?: Array<{
-    message?: {
-      content?: string
-    }
-  }>
-  error?: {
-    message?: string
-  }
-}
+export async function completeChat(
+  config: ModelApiConfig,
+  messages: ChatCompletionMessageParam[],
+): Promise<string> {
+  const client = new OpenAI({
+    apiKey: config.apiKey,
+    baseURL: config.baseUrl,
+  })
 
-export class ModelApiClient {
-  async complete(
-    config: ModelApiConfig,
-    messages: ChatMessage[],
-  ): Promise<string> {
-    const response = await fetch(`${trimTrailingSlash(config.baseUrl)}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages,
-        temperature: 0.2,
-      }),
-    })
+  const completion = await client.chat.completions.create({
+    model: config.model,
+    messages,
+  })
 
-    const data = (await response.json().catch(() => ({}))) as ChatCompletionResponse
-
-    if (!response.ok) {
-      throw new Error(data.error?.message ?? `Model API request failed: ${response.status}`)
-    }
-
-    const content = data.choices?.[0]?.message?.content?.trim()
-
-    if (!content) {
-      throw new Error('Model API returned an empty response.')
-    }
-
-    return content
-  }
-}
-
-function trimTrailingSlash(value: string): string {
-  return value.replace(/\/+$/, '')
+  return completion.choices[0]?.message.content ?? ''
 }

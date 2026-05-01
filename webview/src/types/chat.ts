@@ -1,6 +1,6 @@
 export interface ChatMessage {
   id: number
-  role: 'user' | 'assistant' | 'system'
+  role: 'user' | 'assistant'
   text: string
 }
 
