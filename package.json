@@ -11,8 +11,8 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm run compile",
-    "compile": "tsc --noEmit && vite build --config webview/vite.config.ts && node esbuild.ts",
-    "build:webview": "vite build --config webview/vite.config.ts",
+    "compile": "tsc --noEmit && vite build --config src/webview/vite.config.ts && node esbuild.ts",
+    "build:webview": "vite build --config src/webview/vite.config.ts",
     "watch": "node esbuild.ts --watch",
     "check-types": "tsc --noEmit"
   },

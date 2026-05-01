@@ -12,9 +12,9 @@
     "skipLibCheck": true
   },
   "include": [
-    "extension",
-    "webview/src",
-    "webview/vite.config.ts",
+    "src/extension",
+    "src/webview/src",
+    "src/webview/vite.config.ts",
     "esbuild.ts"
   ]
 }

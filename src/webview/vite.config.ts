@@ -7,7 +7,7 @@ export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
   build: {
     emptyOutDir: true,
-    outDir: '../dist/webview',
+    outDir: '../../dist/webview',
     rollupOptions: {
       input: fileURLToPath(new URL('./index.html', import.meta.url)),
       output: {

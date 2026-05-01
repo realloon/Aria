@@ -5,11 +5,11 @@ import type {
   ChatCompletionToolMessageParam,
   ChatCompletionMessageToolCall,
 } from 'openai/resources/chat/completions'
-import { streamChat } from '../model/ModelApiClient.js'
+import { streamChat } from '../../model/ModelApiClient.js'
 import {
   builtinToolDefinitions,
   executeBuiltinTool,
-} from '../tools/BuiltinTools.js'
+} from '../../tools/index.js'
 
 type AssistantMessageWithReasoning = ChatCompletionAssistantMessageParam & {
   reasoning_content?: string
