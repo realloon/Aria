@@ -33,7 +33,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
         : JSON.stringify(systemMessage.content, null, 2)
     const document = await vscode.workspace.openTextDocument({
       content,
-      language: 'markdown',
+      language: 'xml',
     })
 
     await vscode.window.showTextDocument(document, { preview: false })
