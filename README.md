@@ -36,3 +36,4 @@ Before sending messages:
 
 - Command: `Aria: Open Settings`
 - View: `Aria > Chat`
+- Inline completion: FIM completion through `aria.fim.*` settings. For DeepSeek, Aria routes `https://api.deepseek.com` to `https://api.deepseek.com/beta` automatically.

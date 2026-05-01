@@ -1,4 +1,5 @@
 import * as vscode from 'vscode'
+import { FimInlineCompletionProvider } from './FimInlineCompletionProvider.js'
 import { AriaChatViewProvider } from './webview/AriaChatViewProvider.js'
 
 export function activate(context: vscode.ExtensionContext) {
@@ -27,11 +28,17 @@ export function activate(context: vscode.ExtensionContext) {
       },
     },
   )
+  const fimInlineCompletionRegistration =
+    vscode.languages.registerInlineCompletionItemProvider(
+      [{ scheme: 'file' }, { scheme: 'untitled' }],
+      new FimInlineCompletionProvider(),
+    )
 
   context.subscriptions.push(
     openSettingsCommand,
     showSystemPromptCommand,
     chatViewRegistration,
+    fimInlineCompletionRegistration,
   )
 }
 

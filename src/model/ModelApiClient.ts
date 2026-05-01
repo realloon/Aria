@@ -3,12 +3,19 @@ import type {
   ChatCompletionMessageToolCall,
   ChatCompletionTool,
 } from 'openai/resources/chat/completions'
+import type { CompletionCreateParamsNonStreaming } from 'openai/resources/completions'
 import OpenAI from 'openai'
 
 export interface ModelApiConfig {
   apiKey: string
   baseUrl: string
   model: string
+}
+
+export interface FimCompletionInput {
+  prefix: string
+  suffix?: string
+  maxTokens: number
 }
 
 export type ChatStreamDelta =
@@ -91,6 +98,35 @@ export async function* streamChat(
         .map(toChatCompletionToolCall),
     }
   }
+}
+
+export async function completeFim(
+  config: ModelApiConfig,
+  input: FimCompletionInput,
+  options: { signal?: AbortSignal } = {},
+): Promise<string> {
+  const client = new OpenAI({
+    apiKey: config.apiKey,
+    baseURL: config.baseUrl,
+  })
+
+  const response = await client.completions.create(
+    {
+      model: config.model,
+      prompt: input.prefix,
+      suffix: input.suffix,
+      max_tokens: input.maxTokens,
+      temperature: 0,
+      stream: false,
+    } satisfies CompletionCreateParamsNonStreaming,
+    {
+      signal: options.signal,
+      timeout: 10_000,
+      maxRetries: 0,
+    },
+  )
+
+  return response.choices[0]?.text ?? ''
 }
 
 function toChatCompletionToolCall(

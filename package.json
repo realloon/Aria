@@ -55,6 +55,28 @@
           "type": "string",
           "default": "",
           "description": "API key used by Aria for model requests."
+        },
+        "aria.fim.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable FIM inline completions in the editor."
+        },
+        "aria.fim.baseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Base URL for FIM completions. Defaults to aria.api.baseUrl; DeepSeek URLs are automatically routed to /beta."
+        },
+        "aria.fim.model": {
+          "type": "string",
+          "default": "",
+          "description": "Model name used for FIM completions. Defaults to aria.api.model."
+        },
+        "aria.fim.maxTokens": {
+          "type": "number",
+          "default": 128,
+          "minimum": 1,
+          "maximum": 4096,
+          "description": "Maximum tokens generated for one FIM completion."
         }
       }
     },
