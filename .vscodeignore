@@ -3,6 +3,6 @@
 src/**
 .gitignore
 tsconfig.json
-esbuild.js
+esbuild.ts
 *.map
 node_modules/**

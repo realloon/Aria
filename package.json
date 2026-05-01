@@ -3,13 +3,11 @@
   "displayName": "Aria",
   "description": "Programming agent extension scaffold for Aria.",
   "version": "0.1.0",
+  "type": "module",
   "packageManager": "pnpm@10.33.2",
   "engines": {
     "vscode": "^1.92.0"
   },
-  "activationEvents": [
-    "onCommand:aria.helloWorld"
-  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -21,8 +19,8 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm run compile",
-    "compile": "tsc --noEmit && node esbuild.js",
-    "watch": "node esbuild.js --watch",
+    "compile": "tsc --noEmit && node esbuild.ts",
+    "watch": "node esbuild.ts --watch",
     "check-types": "tsc --noEmit"
   },
   "devDependencies": {

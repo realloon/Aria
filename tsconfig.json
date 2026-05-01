@@ -1,22 +1,15 @@
 {
   "compilerOptions": {
-    "module": "Node16",
+    "module": "NodeNext",
     "target": "ES2022",
-    "lib": [
-      "ES2022"
-    ],
-    "moduleResolution": "Node16",
+    "lib": ["ES2022"],
+    "moduleResolution": "NodeNext",
     "strict": true,
     "sourceMap": true,
-    "rootDir": "src",
+    "rootDir": ".",
     "outDir": "dist",
-    "types": [
-      "node",
-      "vscode"
-    ],
+    "types": ["node", "vscode"],
     "skipLibCheck": true
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src", "esbuild.ts"]
 }
