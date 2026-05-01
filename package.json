@@ -3,6 +3,7 @@
   "displayName": "Aria",
   "description": "Programming agent extension scaffold for Aria.",
   "version": "0.1.0",
+  "publisher": "aria",
   "type": "module",
   "main": "./dist/extension.js",
   "packageManager": "pnpm@10.33.2",
@@ -16,19 +17,20 @@
     "watch": "node esbuild.ts --watch",
     "check-types": "tsc --noEmit"
   },
+  "dependencies": {
+    "markdown-it": "^14.1.1",
+    "openai": "^6.35.0"
+  },
   "devDependencies": {
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^20.14.10",
     "@types/vscode": "1.92.0",
     "@vitejs/plugin-vue": "^6.0.6",
+    "@vscode/vsce": "^3.9.1",
     "esbuild": "^0.28.0",
     "typescript": "^5.5.4",
     "vite": "^8.0.10",
     "vue": "^3.5.33"
-  },
-  "dependencies": {
-    "markdown-it": "^14.1.1",
-    "openai": "^6.35.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

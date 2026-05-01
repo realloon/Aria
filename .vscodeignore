@@ -1,9 +1,11 @@
 .vscode/**
 .vscode-test/**
-extension/**
-webview/**
+
+node_modules/**
+
+src/**
+*.map
+
 .gitignore
 tsconfig.json
 esbuild.ts
-*.map
-node_modules/**
