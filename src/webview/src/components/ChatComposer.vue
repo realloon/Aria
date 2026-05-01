@@ -4,12 +4,14 @@ import { nextTick, ref } from 'vue'
 defineProps<{
   canSend: boolean
   loading: boolean
+  options: string[]
 }>()
 
 const input = defineModel<string>({ required: true })
 const textarea = ref<HTMLTextAreaElement | null>(null)
 
 const emit = defineEmits<{
+  choose: [option: string]
   send: []
 }>()
 
@@ -29,6 +31,19 @@ function onKeydown(event: KeyboardEvent): void {
 
 <template>
   <form class="composer" @submit.prevent="submit">
+    <div v-if="options.length > 0" class="options">
+      <button
+        v-for="option in options"
+        :key="option"
+        type="button"
+        class="option"
+        :disabled="loading"
+        @click="emit('choose', option)"
+      >
+        {{ option }}
+      </button>
+    </div>
+
     <textarea
       ref="textarea"
       v-model="input"
@@ -78,7 +93,7 @@ function onKeydown(event: KeyboardEvent): void {
   resize: none;
 }
 
-.composer button {
+.composer footer button {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -96,6 +111,30 @@ function onKeydown(event: KeyboardEvent): void {
 
   &:hover {
     background: var(--vscode-button-hoverBackground);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.options .option {
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--vscode-button-secondaryHoverBackground);
   }
 
   &:disabled {

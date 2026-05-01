@@ -9,6 +9,8 @@ const {
   loading,
   messages,
   scrollHost,
+  userOptions,
+  chooseOption,
   sendMessage,
 } = useChat()
 </script>
@@ -24,6 +26,8 @@ const {
     v-model="input"
     :can-send="canSend"
     :loading="loading"
+    :options="userOptions"
+    @choose="chooseOption"
     @send="sendMessage"
   />
 </template>

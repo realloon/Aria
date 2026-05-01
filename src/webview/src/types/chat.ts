@@ -9,5 +9,6 @@ export type ExtensionMessage =
   | { type: 'assistantMessageStart' }
   | { type: 'assistantReasoningDelta'; text: string }
   | { type: 'assistantMessageDelta'; text: string }
+  | { type: 'askUser'; question: string; options: string[] }
   | { type: 'error'; message: string }
   | { type: 'loading'; loading: boolean }

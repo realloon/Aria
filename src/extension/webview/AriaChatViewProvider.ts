@@ -10,6 +10,7 @@ import {
   builtinToolDefinitions,
   executeBuiltinTool,
 } from '../../tools/index.js'
+import type { BuiltinToolContext } from '../../tools/types.js'
 
 type AssistantMessageWithReasoning = ChatCompletionAssistantMessageParam & {
   reasoning_content?: string
@@ -17,10 +18,15 @@ type AssistantMessageWithReasoning = ChatCompletionAssistantMessageParam & {
 
 type WebviewMessage = { type: 'ready' } | { type: 'sendMessage'; text: string }
 
+interface PendingUserInput {
+  resolve(value: string): void
+}
+
 export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'aria.chatView'
 
   private readonly messages: ChatCompletionMessageParam[] = []
+  private pendingUserInput?: PendingUserInput
   private webviewView?: vscode.WebviewView
 
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -64,18 +70,31 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       case 'ready':
         return
       case 'sendMessage':
-        await this.sendMessage(message.text)
+        await this.handleUserText(message.text)
         return
     }
   }
 
-  private async sendMessage(text: string): Promise<void> {
+  private async handleUserText(text: string): Promise<void> {
     const userText = text.trim()
 
     if (!userText) {
       return
     }
 
+    if (this.pendingUserInput) {
+      const { resolve } = this.pendingUserInput
+      this.pendingUserInput = undefined
+      await this.postMessage({ type: 'loading', loading: true })
+      await this.postMessage({ type: 'assistantMessageStart' })
+      resolve(userText)
+      return
+    }
+
+    await this.sendMessage(userText)
+  }
+
+  private async sendMessage(userText: string): Promise<void> {
     const config = vscode.workspace.getConfiguration('aria.api')
     const baseUrl = config.get<string>('baseUrl')?.trim() ?? ''
     const model = config.get<string>('model')?.trim() ?? ''
@@ -203,7 +222,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
 
   private async executeToolCall(
     toolCall: ChatCompletionMessageToolCall,
-    toolContext: { cwd: string },
+    toolContext: BuiltinToolContext,
   ): Promise<ChatCompletionToolMessageParam> {
     if (toolCall.type !== 'function') {
       return {
@@ -315,9 +334,27 @@ ${identityContent}
     return vscode.workspace.workspaceFolders?.[0]
   }
 
-  private getToolContext(): { cwd: string } | undefined {
+  private getToolContext(): BuiltinToolContext | undefined {
     const workspaceFolder = this.getCurrentWorkspaceFolder()
-    return workspaceFolder ? { cwd: workspaceFolder.uri.fsPath } : undefined
+    return workspaceFolder
+      ? {
+          cwd: workspaceFolder.uri.fsPath,
+          askUser: (question, options) => this.askUser(question, options),
+        }
+      : undefined
+  }
+
+  private async askUser(question: string, options: string[]): Promise<string> {
+    if (this.pendingUserInput) {
+      throw new Error('Already waiting for user input.')
+    }
+
+    await this.postMessage({ type: 'askUser', question, options })
+    await this.postMessage({ type: 'loading', loading: false })
+
+    return await new Promise(resolve => {
+      this.pendingUserInput = { resolve }
+    })
   }
 
   private getHtml(webview: vscode.Webview): string {

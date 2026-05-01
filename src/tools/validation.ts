@@ -55,6 +55,23 @@ export function getOptionalNumber(
   return value
 }
 
+export function getOptionalStringArray(
+  args: JsonObject,
+  key: string,
+): string[] | undefined {
+  const value = args[key]
+
+  if (value === undefined) {
+    return undefined
+  }
+
+  if (!Array.isArray(value) || value.some(item => typeof item !== 'string')) {
+    throw new Error(`${key} must be an array of strings.`)
+  }
+
+  return value
+}
+
 export function resolvePath(cwd: string, targetPath: string): string {
   return isAbsolute(targetPath) ? resolve(targetPath) : resolve(cwd, targetPath)
 }

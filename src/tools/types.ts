@@ -4,6 +4,7 @@ export type JsonObject = Record<string, unknown>
 
 export interface BuiltinToolContext {
   cwd: string
+  askUser?(question: string, options: string[]): Promise<string>
 }
 
 export interface BuiltinTool {

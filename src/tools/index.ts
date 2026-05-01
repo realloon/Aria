@@ -1,3 +1,4 @@
+import { askUserTool } from './askUserTool.js'
 import type { BuiltinTool, BuiltinToolContext } from './types.js'
 import { patchFileTool } from './patchFileTool.js'
 import { readFileTool } from './readFileTool.js'
@@ -10,6 +11,7 @@ export const builtinTools: BuiltinTool[] = [
   writeFileTool,
   patchFileTool,
   runCommandTool,
+  askUserTool,
 ]
 
 const toolsByName = new Map(

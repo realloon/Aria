@@ -8,6 +8,7 @@ export function useChat() {
   const loading = ref(false)
   const messages = ref<ChatMessage[]>([])
   const scrollHost = ref<HTMLElement | null>(null)
+  const userOptions = ref<string[]>([])
 
   const canSend = computed(() => input.value.trim().length > 0 && !loading.value)
   function sendMessage(): void {
@@ -22,9 +23,19 @@ export function useChat() {
       role: 'user',
       text,
     })
+    userOptions.value = []
     input.value = ''
     vscode.postMessage({ type: 'sendMessage', text })
     void scrollToEnd()
+  }
+
+  function chooseOption(option: string): void {
+    if (loading.value) {
+      return
+    }
+
+    input.value = option
+    sendMessage()
   }
 
   async function scrollToEnd(): Promise<void> {
@@ -68,6 +79,15 @@ export function useChat() {
         void scrollToEnd()
         return
       }
+      case 'askUser':
+        messages.value.push({
+          id: Date.now(),
+          role: 'assistant',
+          text: message.question,
+        })
+        userOptions.value = message.options
+        void scrollToEnd()
+        return
       case 'error':
         messages.value.push({
           id: Date.now(),
@@ -98,6 +118,8 @@ export function useChat() {
     loading,
     messages,
     scrollHost,
+    userOptions,
+    chooseOption,
     sendMessage,
   }
 }
