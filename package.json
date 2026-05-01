@@ -10,24 +10,70 @@
   },
   "main": "./dist/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "Aria",
+      "properties": {
+        "aria.api.baseUrl": {
+          "type": "string",
+          "default": "https://api.openai.com/v1",
+          "description": "Base URL for an OpenAI-compatible model API."
+        },
+        "aria.api.model": {
+          "type": "string",
+          "default": "",
+          "description": "Model name used by the Aria chat panel."
+        }
+      }
+    },
     "commands": [
       {
         "command": "aria.helloWorld",
         "title": "Aria: Hello World"
+      },
+      {
+        "command": "aria.setApiKey",
+        "title": "Aria: Set API Key"
+      },
+      {
+        "command": "aria.clearApiKey",
+        "title": "Aria: Clear API Key"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "aria",
+          "title": "Aria",
+          "icon": "resources/aria.svg"
+        }
+      ]
+    },
+    "views": {
+      "aria": [
+        {
+          "id": "aria.chatView",
+          "name": "Chat",
+          "icon": "resources/aria.svg",
+          "type": "webview"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "pnpm run compile",
-    "compile": "tsc --noEmit && node esbuild.ts",
+    "compile": "tsc --noEmit && vite build --config webview/vite.config.ts && node esbuild.ts",
+    "build:webview": "vite build --config webview/vite.config.ts",
     "watch": "node esbuild.ts --watch",
     "check-types": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
     "@types/vscode": "1.92.0",
+    "@vitejs/plugin-vue": "^6.0.6",
     "esbuild": "^0.28.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vite": "^8.0.10",
+    "vue": "^3.5.33"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

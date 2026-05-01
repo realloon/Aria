@@ -1,6 +1,7 @@
 .vscode/**
 .vscode-test/**
-src/**
+extension/**
+webview/**
 .gitignore
 tsconfig.json
 esbuild.ts
