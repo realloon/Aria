@@ -1,5 +1,5 @@
 import type { JsonObject } from './types.js'
-import path from 'node:path'
+import { isAbsolute, resolve } from 'node:path'
 
 export function parseArgs(argsJson: string): JsonObject {
   const parsed = JSON.parse(argsJson || '{}') as unknown
@@ -56,7 +56,5 @@ export function getOptionalNumber(
 }
 
 export function resolvePath(cwd: string, targetPath: string): string {
-  return path.isAbsolute(targetPath)
-    ? path.resolve(targetPath)
-    : path.resolve(cwd, targetPath)
+  return isAbsolute(targetPath) ? resolve(targetPath) : resolve(cwd, targetPath)
 }

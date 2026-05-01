@@ -1,6 +1,6 @@
-import fs from 'node:fs/promises'
-import path from 'node:path'
 import type { BuiltinTool } from './types.js'
+import { dirname } from 'node:path'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { getString, resolvePath } from './validation.js'
 
 export const writeFileTool: BuiltinTool = {
@@ -43,8 +43,8 @@ export const writeFileTool: BuiltinTool = {
       throw new Error('write_file mode must be "overwrite" or "append".')
     }
 
-    await fs.mkdir(path.dirname(filePath), { recursive: true })
-    await fs.writeFile(filePath, content, {
+    await mkdir(dirname(filePath), { recursive: true })
+    await writeFile(filePath, content, {
       encoding: 'utf-8',
       flag: mode === 'append' ? 'a' : 'w',
     })
