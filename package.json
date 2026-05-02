@@ -15,7 +15,8 @@
     "compile": "tsc --noEmit && vite build --config src/webview/vite.config.ts && node esbuild.ts",
     "build:webview": "vite build --config src/webview/vite.config.ts",
     "watch": "node esbuild.ts --watch",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "build": "pnpm exec vsce package --no-dependencies"
   },
   "dependencies": {
     "markdown-it": "^14.1.1",
