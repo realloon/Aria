@@ -64,7 +64,7 @@
         "aria.fim.baseUrl": {
           "type": "string",
           "default": "",
-          "description": "Base URL for FIM completions. Defaults to aria.api.baseUrl; DeepSeek URLs are automatically routed to /beta."
+          "description": "Base URL for FIM completions. Defaults to aria.api.baseUrl."
         },
         "aria.fim.model": {
           "type": "string",
@@ -77,6 +77,11 @@
           "minimum": 1,
           "maximum": 4096,
           "description": "Maximum tokens generated for one FIM completion."
+        },
+        "aria.fim.useWorkspaceSymbols": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include compact VS Code workspace symbol matches in FIM prompts when available."
         }
       }
     },
