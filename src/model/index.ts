@@ -10,9 +10,15 @@ export {
   modelProviders,
   parseModelProviderId,
 } from './deepseek.js'
+export { OpenAICompatible, runOpenAICompatibleChat } from './openai-compatible.js'
 export type {
   ChatReasoningEffort,
   DeepSeekChatInput,
   ModelProvider,
   ModelProviderId,
 } from './deepseek.js'
+export type {
+  OpenAICompatibleChatInput,
+  OpenAICompatibleOptions,
+  OpenAICompatibleReasoningEffort,
+} from './openai-compatible.js'

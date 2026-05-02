@@ -1,4 +1,5 @@
 import * as vscode from 'vscode'
+import { randomUUID } from 'node:crypto'
 import type {
   ChatCompletionMessageParam,
   ChatCompletionMessageToolCall,
@@ -18,7 +19,34 @@ import {
 } from '../../tools/index.js'
 import type { BuiltinToolContext } from '../../tools/types.js'
 
-type WebviewMessage = { type: 'ready' } | { type: 'sendMessage'; text: string }
+type WebviewMessage =
+  | { type: 'ready' }
+  | { type: 'sendMessage'; text: string }
+  | { type: 'newThread' }
+  | { type: 'selectThread'; threadId: string }
+  | { type: 'deleteThread'; threadId: string }
+
+interface UiChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  reasoning?: string
+  text: string
+}
+
+interface Thread {
+  id: string
+  title: string
+  createdAt: number
+  updatedAt: number
+  messages: ChatCompletionMessageParam[]
+  uiMessages: UiChatMessage[]
+}
+
+interface ThreadState {
+  version: 1
+  activeThreadId: string
+  threads: Thread[]
+}
 
 interface PendingUserInput {
   resolve(value: string): void
@@ -26,14 +54,17 @@ interface PendingUserInput {
 
 export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'aria.chatView'
+  private static readonly threadStateKey = 'aria.threadState'
 
   private readonly context: vscode.ExtensionContext
-  private readonly messages: ChatCompletionMessageParam[] = []
+  private readonly threadState: ThreadState
+  private busy = false
   private pendingUserInput?: PendingUserInput
   private webviewView?: vscode.WebviewView
 
   constructor(context: vscode.ExtensionContext) {
     this.context = context
+    this.threadState = this.loadThreadState()
   }
 
   async showSystemPrompt(): Promise<void> {
@@ -73,9 +104,19 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   private async handleMessage(message: WebviewMessage): Promise<void> {
     switch (message.type) {
       case 'ready':
+        await this.postThreadState()
         return
       case 'sendMessage':
         await this.handleUserText(message.text)
+        return
+      case 'newThread':
+        await this.createThread()
+        return
+      case 'selectThread':
+        await this.selectThread(message.threadId)
+        return
+      case 'deleteThread':
+        await this.deleteThread(message.threadId)
         return
     }
   }
@@ -90,8 +131,12 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     if (this.pendingUserInput) {
       const { resolve } = this.pendingUserInput
       this.pendingUserInput = undefined
+      this.addUiMessage({
+        role: 'user',
+        text: userText,
+      })
+      await this.saveThreadState()
       await this.postMessage({ type: 'loading', loading: true })
-      await this.postMessage({ type: 'assistantMessageStart' })
       resolve(userText)
       return
     }
@@ -100,6 +145,16 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async sendMessage(userText: string): Promise<void> {
+    if (this.busy) {
+      return
+    }
+
+    const thread = this.getActiveThread()
+    this.addUiMessage({ role: 'user', text: userText })
+    this.updateThreadTitle(thread, userText)
+    await this.saveThreadState()
+    await this.postThreadState()
+
     const config = vscode.workspace.getConfiguration('aria.api')
     const providerValue = config.get<string>('provider')?.trim()
 
@@ -141,10 +196,10 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     await this.postMessage({ type: 'loading', loading: true })
+    this.busy = true
 
     try {
-      await this.postMessage({ type: 'assistantMessageStart' })
-
+      let assistantMessage: UiChatMessage | undefined
       const messages = await this.runAssistantTurn(
         {
           apiKey,
@@ -152,18 +207,40 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
           reasoningEffort,
         },
         userText,
+        delta => {
+          assistantMessage ??= this.addUiMessage({
+            role: 'assistant',
+            reasoning: '',
+            text: '',
+          })
+
+          if (delta.type === 'reasoning') {
+            assistantMessage.reasoning = `${assistantMessage.reasoning ?? ''}${delta.text}`
+            return
+          }
+
+          assistantMessage.text += delta.text
+        },
       )
-      this.messages.splice(0, this.messages.length, ...messages)
+      thread.messages = messages
+      await this.saveThreadState()
+      await this.postThreadState()
     } catch (error) {
       await this.postError(
         error instanceof Error ? error.message : 'Model request failed.',
       )
     } finally {
+      this.busy = false
       await this.postMessage({ type: 'loading', loading: false })
     }
   }
 
   private async postError(message: string): Promise<void> {
+    this.addUiMessage({
+      role: 'assistant',
+      text: message,
+    })
+    await this.saveThreadState()
     await this.postMessage({ type: 'error', message })
   }
 
@@ -174,6 +251,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       reasoningEffort: ChatReasoningEffort
     },
     userText: string,
+    onDelta: (delta: { type: 'content' | 'reasoning'; text: string }) => void,
   ): Promise<ChatCompletionMessageParam[]> {
     const toolContext = this.getToolContext()
     const tools = toolContext ? builtinToolDefinitions : []
@@ -188,7 +266,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       config.apiKey,
       systemPrompt,
     )
-    model.messages.push(...this.messages)
+    model.messages.push(...this.getActiveThread().messages)
 
     for await (const delta of model.chat({
       model: provider.chatModel,
@@ -201,6 +279,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       maxToolRounds: tools.length > 0 ? 5 : undefined,
     })) {
       if (delta.type === 'content') {
+        onDelta(delta)
         await this.postMessage({
           type: 'assistantMessageDelta',
           text: delta.text,
@@ -209,6 +288,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       }
 
       if (delta.type === 'reasoning') {
+        onDelta(delta)
         await this.postMessage({
           type: 'assistantReasoningDelta',
           text: delta.text,
@@ -218,6 +298,186 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     return model.messages
+  }
+
+  private loadThreadState(): ThreadState {
+    const saved =
+      this.context.workspaceState.get<Partial<ThreadState>>(
+        AriaChatViewProvider.threadStateKey,
+      )
+
+    if (!saved || !Array.isArray(saved.threads) || saved.threads.length === 0) {
+      const thread = this.createEmptyThread()
+      return {
+        version: 1,
+        activeThreadId: thread.id,
+        threads: [thread],
+      }
+    }
+
+    const threads = saved.threads
+      .filter(thread => typeof thread.id === 'string')
+      .map(thread => ({
+        id: thread.id,
+        title: normalizeThreadTitle(thread.title),
+        createdAt:
+          typeof thread.createdAt === 'number' ? thread.createdAt : Date.now(),
+        updatedAt:
+          typeof thread.updatedAt === 'number' ? thread.updatedAt : Date.now(),
+        messages: Array.isArray(thread.messages) ? thread.messages : [],
+        uiMessages: Array.isArray(thread.uiMessages) ? thread.uiMessages : [],
+      }))
+
+    if (threads.length === 0) {
+      const thread = this.createEmptyThread()
+      return {
+        version: 1,
+        activeThreadId: thread.id,
+        threads: [thread],
+      }
+    }
+
+    const activeThreadId =
+      typeof saved.activeThreadId === 'string' &&
+      threads.some(thread => thread.id === saved.activeThreadId)
+        ? saved.activeThreadId
+        : threads[0]!.id
+
+    return {
+      version: 1,
+      activeThreadId,
+      threads,
+    }
+  }
+
+  private async saveThreadState(): Promise<void> {
+    await this.context.workspaceState.update(
+      AriaChatViewProvider.threadStateKey,
+      this.threadState,
+    )
+  }
+
+  private async createThread(): Promise<void> {
+    if (this.isThreadLocked()) {
+      return
+    }
+
+    const thread = this.createEmptyThread()
+    this.threadState.threads.unshift(thread)
+    this.threadState.activeThreadId = thread.id
+    await this.saveThreadState()
+    await this.postThreadState()
+  }
+
+  private async selectThread(threadId: string): Promise<void> {
+    if (this.isThreadLocked()) {
+      return
+    }
+
+    if (!this.threadState.threads.some(thread => thread.id === threadId)) {
+      return
+    }
+
+    this.threadState.activeThreadId = threadId
+    await this.saveThreadState()
+    await this.postThreadState()
+  }
+
+  private async deleteThread(threadId: string): Promise<void> {
+    if (this.isThreadLocked() || this.threadState.threads.length <= 1) {
+      return
+    }
+
+    const index = this.threadState.threads.findIndex(
+      thread => thread.id === threadId,
+    )
+
+    if (index === -1) {
+      return
+    }
+
+    this.threadState.threads.splice(index, 1)
+
+    if (this.threadState.activeThreadId === threadId) {
+      this.threadState.activeThreadId =
+        this.threadState.threads[Math.max(index - 1, 0)]?.id ??
+        this.threadState.threads[0]!.id
+    }
+
+    await this.saveThreadState()
+    await this.postThreadState()
+  }
+
+  private createEmptyThread(): Thread {
+    const now = Date.now()
+
+    return {
+      id: randomUUID(),
+      title: 'New Thread',
+      createdAt: now,
+      updatedAt: now,
+      messages: [],
+      uiMessages: [],
+    }
+  }
+
+  private getActiveThread(): Thread {
+    const thread = this.threadState.threads.find(
+      item => item.id === this.threadState.activeThreadId,
+    )
+
+    if (!thread) {
+      throw new Error('Active thread not found.')
+    }
+
+    return thread
+  }
+
+  private addUiMessage(message: Omit<UiChatMessage, 'id'>): UiChatMessage {
+    const thread = this.getActiveThread()
+    const uiMessage = {
+      id: randomUUID(),
+      ...message,
+    }
+
+    thread.uiMessages.push(uiMessage)
+    thread.updatedAt = Date.now()
+    this.sortThreads()
+
+    return uiMessage
+  }
+
+  private updateThreadTitle(thread: Thread, userText: string): void {
+    if (thread.title !== 'New Thread') {
+      return
+    }
+
+    thread.title = normalizeThreadTitle(userText)
+  }
+
+  private sortThreads(): void {
+    this.threadState.threads.sort(
+      (left, right) => right.updatedAt - left.updatedAt,
+    )
+  }
+
+  private isThreadLocked(): boolean {
+    return this.busy || this.pendingUserInput !== undefined
+  }
+
+  private async postThreadState(): Promise<void> {
+    const activeThread = this.getActiveThread()
+
+    await this.postMessage({
+      type: 'threadState',
+      activeThreadId: this.threadState.activeThreadId,
+      threads: this.threadState.threads.map(thread => ({
+        id: thread.id,
+        title: thread.title,
+        updatedAt: thread.updatedAt,
+      })),
+      messages: activeThread.uiMessages,
+    })
   }
 
   private async executeToolCall(
@@ -318,6 +578,11 @@ ${identityContent}
       throw new Error('Already waiting for user input.')
     }
 
+    this.addUiMessage({
+      role: 'assistant',
+      text: question,
+    })
+    await this.saveThreadState()
     await this.postMessage({ type: 'askUser', question, options })
     await this.postMessage({ type: 'loading', loading: false })
 
@@ -395,4 +660,15 @@ function getProviderApiKey(
   providerId: ModelProviderId,
 ): string {
   return config.get<string>(`apiKeys.${providerId}`)?.trim() ?? ''
+}
+
+function normalizeThreadTitle(value: unknown): string {
+  const text = typeof value === 'string' ? value.trim() : ''
+  const firstLine = text.split(/\r?\n/, 1)[0]?.trim()
+
+  if (!firstLine) {
+    return 'New Thread'
+  }
+
+  return firstLine.length > 40 ? `${firstLine.slice(0, 37)}...` : firstLine
 }

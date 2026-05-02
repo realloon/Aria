@@ -1,5 +1,9 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import type { ChatMessage, ExtensionMessage } from '../types/chat.js'
+import type {
+  ChatMessage,
+  ChatThreadSummary,
+  ExtensionMessage,
+} from '../types/chat.js'
 
 const vscode = acquireVsCodeApi()
 
@@ -8,9 +12,15 @@ export function useChat() {
   const loading = ref(false)
   const messages = ref<ChatMessage[]>([])
   const scrollHost = ref<HTMLElement | null>(null)
+  const threads = ref<ChatThreadSummary[]>([])
+  const activeThreadId = ref('')
   const userOptions = ref<string[]>([])
 
   const canSend = computed(() => input.value.trim().length > 0 && !loading.value)
+  const threadControlsDisabled = computed(
+    () => loading.value || userOptions.value.length > 0,
+  )
+
   function sendMessage(): void {
     const text = input.value.trim()
 
@@ -19,7 +29,7 @@ export function useChat() {
     }
 
     messages.value.push({
-      id: Date.now(),
+      id: createLocalId(),
       role: 'user',
       text,
     })
@@ -27,6 +37,30 @@ export function useChat() {
     input.value = ''
     vscode.postMessage({ type: 'sendMessage', text })
     void scrollToEnd()
+  }
+
+  function createThread(): void {
+    if (threadControlsDisabled.value) {
+      return
+    }
+
+    vscode.postMessage({ type: 'newThread' })
+  }
+
+  function selectThread(threadId: string): void {
+    if (threadControlsDisabled.value || threadId === activeThreadId.value) {
+      return
+    }
+
+    vscode.postMessage({ type: 'selectThread', threadId })
+  }
+
+  function deleteThread(threadId: string): void {
+    if (threadControlsDisabled.value || threads.value.length <= 1) {
+      return
+    }
+
+    vscode.postMessage({ type: 'deleteThread', threadId })
   }
 
   function chooseOption(option: string): void {
@@ -50,9 +84,16 @@ export function useChat() {
     const message = event.data as ExtensionMessage
 
     switch (message.type) {
+      case 'threadState':
+        activeThreadId.value = message.activeThreadId
+        threads.value = message.threads
+        messages.value = message.messages
+        userOptions.value = []
+        void scrollToEnd()
+        return
       case 'assistantMessageStart':
         messages.value.push({
-          id: Date.now(),
+          id: createLocalId(),
           role: 'assistant',
           reasoning: '',
           text: '',
@@ -60,28 +101,24 @@ export function useChat() {
         void scrollToEnd()
         return
       case 'assistantReasoningDelta': {
-        const lastMessage = messages.value.at(-1)
+        const lastMessage = ensureAssistantMessage()
 
-        if (lastMessage?.role === 'assistant') {
-          lastMessage.reasoning = `${lastMessage.reasoning ?? ''}${message.text}`
-        }
+        lastMessage.reasoning = `${lastMessage.reasoning ?? ''}${message.text}`
 
         void scrollToEnd()
         return
       }
       case 'assistantMessageDelta': {
-        const lastMessage = messages.value.at(-1)
+        const lastMessage = ensureAssistantMessage()
 
-        if (lastMessage?.role === 'assistant') {
-          lastMessage.text += message.text
-        }
+        lastMessage.text += message.text
 
         void scrollToEnd()
         return
       }
       case 'askUser':
         messages.value.push({
-          id: Date.now(),
+          id: createLocalId(),
           role: 'assistant',
           text: message.question,
         })
@@ -90,7 +127,7 @@ export function useChat() {
         return
       case 'error':
         messages.value.push({
-          id: Date.now(),
+          id: createLocalId(),
           role: 'assistant',
           text: message.message,
         })
@@ -112,14 +149,42 @@ export function useChat() {
     window.removeEventListener('message', handleExtensionMessage)
   })
 
+  function ensureAssistantMessage(): ChatMessage {
+    const lastMessage = messages.value.at(-1)
+
+    if (lastMessage?.role === 'assistant') {
+      return lastMessage
+    }
+
+    const assistantMessage: ChatMessage = {
+      id: createLocalId(),
+      role: 'assistant',
+      reasoning: '',
+      text: '',
+    }
+
+    messages.value.push(assistantMessage)
+    return assistantMessage
+  }
+
   return {
+    activeThreadId,
     canSend,
     input,
     loading,
     messages,
     scrollHost,
+    threadControlsDisabled,
+    threads,
     userOptions,
     chooseOption,
+    createThread,
+    deleteThread,
+    selectThread,
     sendMessage,
   }
+}
+
+function createLocalId(): string {
+  return `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
