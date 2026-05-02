@@ -20,11 +20,26 @@ export interface DeepSeekChatInput extends ModelChatInput {
   reasoningEffort: ChatReasoningEffort
 }
 
+export type ModelProviderId = 'deepseek' | 'openai'
+
+export interface ModelProvider {
+  id: ModelProviderId
+  label: string
+  baseURL: string
+  chatModel: string
+  fimModel?: string
+  reasoningMode: 'deepseek' | 'openai'
+}
+
 interface ToolCallAccumulator {
   index: number
   id?: string
   name?: string
   arguments: string
+}
+
+type AssistantMessageWithReasoning = ChatCompletionAssistantMessageParam & {
+  reasoning_content?: string
 }
 
 interface ChatRequestOptions {
@@ -33,27 +48,97 @@ interface ChatRequestOptions {
   systemPrompt?: string
 }
 
-export const modelProvider = {
-  deepseek: 'https://api.deepseek.com/beta',
-} as const
+export const modelProviders = {
+  deepseek: {
+    id: 'deepseek',
+    label: 'DeepSeek',
+    baseURL: 'https://api.deepseek.com/beta',
+    chatModel: 'deepseek-v4-flash',
+    fimModel: 'deepseek-v4-pro',
+    reasoningMode: 'deepseek',
+  },
+  openai: {
+    id: 'openai',
+    label: 'OpenAI',
+    baseURL: 'https://api.openai.com/v1',
+    chatModel: 'gpt-5.3-codex',
+    reasoningMode: 'openai',
+  },
+} as const satisfies Record<ModelProviderId, ModelProvider>
+
+export function parseModelProviderId(
+  value: string | undefined,
+): ModelProviderId {
+  switch (value) {
+    case undefined:
+    case '':
+    case 'deepseek':
+      return 'deepseek'
+    case 'openai':
+      return 'openai'
+    default:
+      throw new Error('Configure aria.api.provider before sending a message.')
+  }
+}
 
 export class DeepSeek extends Model<DeepSeekChatInput> {
   constructor(apiKey: string, systemPrompt?: string) {
-    super(modelProvider.deepseek, apiKey, systemPrompt)
+    super(modelProviders.deepseek.baseURL, apiKey, systemPrompt)
   }
 
   override async *chat(
     input: DeepSeekChatInput,
   ): AsyncGenerator<ModelChatEvent> {
     yield* runChat(this.client, this.messages, input, {
-      reasoningEffort: input.reasoningEffort,
-      extraBody: {
-        thinking: {
-          type: input.reasoningEffort === 'none' ? 'disabled' : 'enabled',
-        },
-      },
+      ...getChatRequestOptions(modelProviders.deepseek, input.reasoningEffort),
       systemPrompt: this.systemPrompt,
     })
+  }
+}
+
+export class ProviderModel extends Model<DeepSeekChatInput> {
+  private readonly provider: ModelProvider
+
+  constructor(provider: ModelProvider, apiKey: string, systemPrompt?: string) {
+    super(provider.baseURL, apiKey, systemPrompt)
+    this.provider = provider
+  }
+
+  override async *chat(
+    input: DeepSeekChatInput,
+  ): AsyncGenerator<ModelChatEvent> {
+    yield* runChat(this.client, this.messages, input, {
+      ...getChatRequestOptions(this.provider, input.reasoningEffort),
+      systemPrompt: this.systemPrompt,
+    })
+  }
+}
+
+export function createProviderModel(
+  providerId: ModelProviderId,
+  apiKey: string,
+  systemPrompt?: string,
+): ProviderModel {
+  return new ProviderModel(modelProviders[providerId], apiKey, systemPrompt)
+}
+
+function getChatRequestOptions(
+  provider: ModelProvider,
+  reasoningEffort: ChatReasoningEffort,
+): Pick<ChatRequestOptions, 'reasoningEffort' | 'extraBody'> {
+  if (provider.reasoningMode === 'deepseek') {
+    return {
+      reasoningEffort,
+      extraBody: {
+        thinking: {
+          type: reasoningEffort === 'none' ? 'disabled' : 'enabled',
+        },
+      },
+    }
+  }
+
+  return {
+    reasoningEffort: reasoningEffort === 'none' ? undefined : reasoningEffort,
   }
 }
 
@@ -105,14 +190,14 @@ async function* runChat(
       throw new Error('Stopped after too many tool call rounds.')
     }
 
-    requestMessages.push(result.assistantMessage)
-    requestMessages.push(
-      ...(await Promise.all(
-        result.toolCalls.map(async toolCall =>
-          toToolMessage(toolCall, await input.executeTool!(toolCall)),
-        ),
-      )),
+    const toolMessages = await Promise.all(
+      result.toolCalls.map(async toolCall =>
+        toToolMessage(toolCall, await input.executeTool!(toolCall)),
+      ),
     )
+
+    requestMessages.push(result.assistantMessage, ...toolMessages)
+    messages.push(result.assistantMessage, ...toolMessages)
   }
 }
 
@@ -146,6 +231,7 @@ async function* runChatRound(
   )
   const toolCalls = new Map<number, ToolCallAccumulator>()
   let responseText = ''
+  let reasoningText = ''
 
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta
@@ -154,6 +240,7 @@ async function* runChatRound(
       ?.reasoning_content
 
     if (reasoning) {
+      reasoningText += reasoning
       yield { type: 'reasoning', text: reasoning }
     }
 
@@ -172,6 +259,7 @@ async function* runChatRound(
   return {
     assistantMessage: toAssistantMessage({
       content: responseText,
+      reasoningContent: reasoningText,
       toolCalls: completedToolCalls,
     }),
     toolCalls: completedToolCalls,
@@ -210,11 +298,16 @@ function accumulateToolCalls(
 
 function toAssistantMessage(options: {
   content: string
+  reasoningContent: string
   toolCalls: ChatCompletionMessageToolCall[]
 }): ChatCompletionAssistantMessageParam {
-  const message: ChatCompletionAssistantMessageParam = {
+  const message: AssistantMessageWithReasoning = {
     role: 'assistant',
     content: options.content || null,
+  }
+
+  if (options.reasoningContent) {
+    message.reasoning_content = options.reasoningContent
   }
 
   if (options.toolCalls.length > 0) {

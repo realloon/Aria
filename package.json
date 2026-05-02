@@ -41,15 +41,24 @@
     "configuration": {
       "title": "Aria",
       "properties": {
-        "aria.api.model": {
+        "aria.api.provider": {
           "type": "string",
-          "default": "",
-          "description": "Model name used by the Aria chat panel."
+          "enum": [
+            "deepseek",
+            "openai"
+          ],
+          "default": "deepseek",
+          "description": "Model provider used by Aria."
         },
-        "aria.api.apiKey": {
+        "aria.api.apiKeys.deepseek": {
           "type": "string",
           "default": "",
-          "description": "API key used by Aria for model requests."
+          "description": "DeepSeek API key used by Aria."
+        },
+        "aria.api.apiKeys.openai": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API key used by Aria."
         },
         "aria.api.reasoningEffort": {
           "type": "string",
@@ -68,11 +77,6 @@
           "type": "boolean",
           "default": true,
           "description": "Enable FIM inline completions in the editor."
-        },
-        "aria.fim.model": {
-          "type": "string",
-          "default": "",
-          "description": "Model name used for FIM completions."
         },
         "aria.fim.maxTokens": {
           "type": "number",

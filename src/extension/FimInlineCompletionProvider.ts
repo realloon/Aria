@@ -1,5 +1,10 @@
 import * as vscode from 'vscode'
-import { DeepSeek } from '../model/index.js'
+import {
+  createProviderModel,
+  modelProviders,
+  parseModelProviderId,
+} from '../model/index.js'
+import type { ModelProvider, ModelProviderId } from '../model/index.js'
 
 const maxPrefixLength = 16_000
 const maxSuffixLength = 8_000
@@ -17,7 +22,6 @@ export interface FimContext {
 
 export interface FimSettings {
   enabled: boolean
-  model: string
   maxTokens: number
   useWorkspaceSymbols: boolean
 }
@@ -57,8 +61,11 @@ export class FimInlineCompletionProvider
     })
 
     try {
-      const completion = await new DeepSeek(config.apiKey).complete({
-        model: config.model,
+      const completion = await createProviderModel(
+        config.providerId,
+        config.apiKey,
+      ).complete({
+        model: config.fimModel,
         prefix,
         suffix: suffix || undefined,
         maxTokens: config.maxTokens,
@@ -90,7 +97,8 @@ export class FimInlineCompletionProvider
   private getConfig():
     | {
         apiKey: string
-        model: string
+        providerId: ModelProviderId
+        fimModel: string
         maxTokens: number
         useWorkspaceSymbols: boolean
       }
@@ -102,15 +110,28 @@ export class FimInlineCompletionProvider
       return undefined
     }
 
-    const apiKey = apiConfig.get<string>('apiKey')?.trim() ?? ''
+    let providerId: ModelProviderId
 
-    if (!apiKey || !settings.model) {
+    try {
+      providerId = parseModelProviderId(
+        apiConfig.get<string>('provider')?.trim(),
+      )
+    } catch {
+      return undefined
+    }
+
+    const apiKey = getProviderApiKey(apiConfig, providerId)
+    const provider: ModelProvider = modelProviders[providerId]
+    const fimModel = provider.fimModel
+
+    if (!apiKey || !fimModel) {
       return undefined
     }
 
     return {
       apiKey,
-      model: settings.model,
+      providerId,
+      fimModel,
       maxTokens: settings.maxTokens,
       useWorkspaceSymbols: settings.useWorkspaceSymbols,
     }
@@ -149,7 +170,6 @@ export function getFimSettings(): FimSettings {
 
   return {
     enabled: fimConfig.get<boolean>('enabled') === true,
-    model: fimConfig.get<string>('model')?.trim() ?? '',
     maxTokens: clampMaxTokens(fimConfig.get<number>('maxTokens')),
     useWorkspaceSymbols: fimConfig.get<boolean>('useWorkspaceSymbols') === true,
   }
@@ -862,4 +882,11 @@ function clampMaxTokens(value: number | undefined): number {
   }
 
   return Math.min(Math.max(Math.trunc(value), 1), 4096)
+}
+
+function getProviderApiKey(
+  config: vscode.WorkspaceConfiguration,
+  providerId: ModelProviderId,
+): string {
+  return config.get<string>(`apiKeys.${providerId}`)?.trim() ?? ''
 }

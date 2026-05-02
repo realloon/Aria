@@ -28,8 +28,13 @@ The Aria activity bar item opens the Agent Chat panel.
 
 Before sending messages:
 
-1. Configure `aria.api.apiKey` in VS Code Settings.
-2. Configure `aria.api.model` in VS Code Settings.
+1. Configure `aria.api.provider` in VS Code Settings.
+2. Configure the API key for that provider in VS Code Settings:
+   - `aria.api.apiKeys.deepseek`
+   - `aria.api.apiKeys.openai`
+
+Supported providers are `deepseek` and `openai`. Aria selects the default chat
+and FIM model for the chosen provider.
 
 ## Current Contribution
 
@@ -37,4 +42,4 @@ Before sending messages:
 - Command: `Aria: Show FIM Context`
 - Keybinding: `Cmd+Option+K` triggers FIM inline completion.
 - View: `Aria > Chat`
-- Inline completion: FIM completion through `aria.fim.*` settings. When available, Aria adds compact VS Code symbol context from the current document and workspace symbol providers.
+- Inline completion: FIM completion uses the selected provider when it supports a default FIM model. When available, Aria adds compact VS Code symbol context from the current document and workspace symbol providers.

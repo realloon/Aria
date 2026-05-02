@@ -4,8 +4,15 @@ export type {
   ModelChatInput,
   ModelCompletionInput,
 } from './abstract.js'
-export { DeepSeek, modelProvider } from './deepseek.js'
+export {
+  createProviderModel,
+  DeepSeek,
+  modelProviders,
+  parseModelProviderId,
+} from './deepseek.js'
 export type {
   ChatReasoningEffort,
   DeepSeekChatInput,
+  ModelProvider,
+  ModelProviderId,
 } from './deepseek.js'

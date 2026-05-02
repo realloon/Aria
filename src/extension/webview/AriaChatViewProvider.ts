@@ -3,8 +3,15 @@ import type {
   ChatCompletionMessageParam,
   ChatCompletionMessageToolCall,
 } from 'openai/resources/chat/completions'
-import { DeepSeek } from '../../model/index.js'
-import type { ChatReasoningEffort } from '../../model/index.js'
+import {
+  createProviderModel,
+  modelProviders,
+  parseModelProviderId,
+} from '../../model/index.js'
+import type {
+  ChatReasoningEffort,
+  ModelProviderId,
+} from '../../model/index.js'
 import {
   builtinToolDefinitions,
   executeBuiltinTool,
@@ -94,16 +101,27 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
 
   private async sendMessage(userText: string): Promise<void> {
     const config = vscode.workspace.getConfiguration('aria.api')
-    const model = config.get<string>('model')?.trim() ?? ''
-    const apiKey = config.get<string>('apiKey')?.trim() ?? ''
+    const providerValue = config.get<string>('provider')?.trim()
 
-    if (!apiKey) {
-      await this.postError('Set an API key before sending a message.')
+    let providerId: ModelProviderId
+
+    try {
+      providerId = parseModelProviderId(providerValue)
+    } catch (error) {
+      await this.postError(
+        error instanceof Error
+          ? error.message
+          : 'Configure aria.api.provider before sending a message.',
+      )
       return
     }
 
-    if (!model) {
-      await this.postError('Configure aria.api.model before sending a message.')
+    const apiKey = getProviderApiKey(config, providerId)
+
+    if (!apiKey) {
+      await this.postError(
+        `Configure aria.api.apiKeys.${providerId} before sending a message.`,
+      )
       return
     }
 
@@ -130,7 +148,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       const messages = await this.runAssistantTurn(
         {
           apiKey,
-          model,
+          providerId,
           reasoningEffort,
         },
         userText,
@@ -152,7 +170,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   private async runAssistantTurn(
     config: {
       apiKey: string
-      model: string
+      providerId: ModelProviderId
       reasoningEffort: ChatReasoningEffort
     },
     userText: string,
@@ -164,11 +182,16 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       typeof systemMessage.content === 'string'
         ? systemMessage.content
         : JSON.stringify(systemMessage.content)
-    const model = new DeepSeek(config.apiKey, systemPrompt)
+    const provider = modelProviders[config.providerId]
+    const model = createProviderModel(
+      config.providerId,
+      config.apiKey,
+      systemPrompt,
+    )
     model.messages.push(...this.messages)
 
     for await (const delta of model.chat({
-      model: config.model,
+      model: provider.chatModel,
       input: userText,
       tools,
       reasoningEffort: config.reasoningEffort,
@@ -365,4 +388,11 @@ function parseReasoningEffort(value: string | undefined): ChatReasoningEffort {
         'Configure aria.api.reasoningEffort before sending a message.',
       )
   }
+}
+
+function getProviderApiKey(
+  config: vscode.WorkspaceConfiguration,
+  providerId: ModelProviderId,
+): string {
+  return config.get<string>(`apiKeys.${providerId}`)?.trim() ?? ''
 }
