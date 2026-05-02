@@ -1,7 +1,7 @@
 import { deepSeekBaseURL, ProviderModel } from './deepseek.js'
 import { OpenAICompatible } from './openai-compatible.js'
 
-export type ModelProviderId = 'deepseek' | 'openai' | 'openai-compatible'
+export type ModelProviderId = 'openai' | 'openai-compatible' | 'deepseek'
 
 export interface ModelProvider {
   id: ModelProviderId
@@ -9,7 +9,7 @@ export interface ModelProvider {
   baseURL: string
   chatModels: string[]
   fimModel?: string
-  reasoningMode: 'deepseek' | 'openai'
+  reasoningMode: 'openai' | 'deepseek'
 }
 
 export const modelProviders = {
