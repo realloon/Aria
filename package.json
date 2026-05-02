@@ -94,6 +94,18 @@
       {
         "command": "aria.showSystemPrompt",
         "title": "Aria: Show System Prompt"
+      },
+      {
+        "command": "aria.showFimContext",
+        "title": "Aria: Show FIM Context"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "editor.action.inlineSuggest.trigger",
+        "key": "cmd+alt+k",
+        "mac": "cmd+alt+k",
+        "when": "editorTextFocus"
       }
     ],
     "menus": {

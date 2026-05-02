@@ -35,5 +35,7 @@ Before sending messages:
 ## Current Contribution
 
 - Command: `Aria: Open Settings`
+- Command: `Aria: Show FIM Context`
+- Keybinding: `Cmd+Option+K` triggers FIM inline completion.
 - View: `Aria > Chat`
 - Inline completion: FIM completion through `aria.fim.*` settings. When available, Aria adds compact VS Code symbol context from the current document and workspace symbol providers.

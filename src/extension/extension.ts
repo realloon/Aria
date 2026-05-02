@@ -1,5 +1,9 @@
 import * as vscode from 'vscode'
-import { FimInlineCompletionProvider } from './FimInlineCompletionProvider.js'
+import {
+  buildFimContext,
+  FimInlineCompletionProvider,
+  getFimSettings,
+} from './FimInlineCompletionProvider.js'
 import { AriaChatViewProvider } from './webview/AriaChatViewProvider.js'
 
 export function activate(context: vscode.ExtensionContext) {
@@ -16,6 +20,12 @@ export function activate(context: vscode.ExtensionContext) {
     'aria.showSystemPrompt',
     async () => {
       await chatViewProvider.showSystemPrompt()
+    },
+  )
+  const showFimContextCommand = vscode.commands.registerCommand(
+    'aria.showFimContext',
+    async () => {
+      await showFimContext()
     },
   )
 
@@ -37,9 +47,43 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     openSettingsCommand,
     showSystemPromptCommand,
+    showFimContextCommand,
     chatViewRegistration,
     fimInlineCompletionRegistration,
   )
 }
 
 export function deactivate() {}
+
+async function showFimContext(): Promise<void> {
+  const editor = vscode.window.activeTextEditor
+
+  if (!editor) {
+    await vscode.window.showWarningMessage(
+      'Open a text editor before showing FIM context.',
+    )
+    return
+  }
+
+  const settings = getFimSettings()
+  const position = editor.selection.active
+  const context = await buildFimContext(
+    editor.document,
+    position,
+    settings.useWorkspaceSymbols,
+  )
+  const document = await vscode.workspace.openTextDocument({
+    content: JSON.stringify(
+      {
+        prompt: context.prefix,
+        suffix: context.suffix || undefined,
+        max_tokens: settings.maxTokens,
+      },
+      null,
+      2,
+    ),
+    language: 'json',
+  })
+
+  await vscode.window.showTextDocument(document, { preview: false })
+}

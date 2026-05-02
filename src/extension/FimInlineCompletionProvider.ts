@@ -7,6 +7,19 @@ const maxSymbolContextLength = 2_000
 const maxDocumentSymbols = 12
 const maxWorkspaceSymbols = 12
 
+export interface FimContext {
+  prefix: string
+  suffix: string
+}
+
+export interface FimSettings {
+  enabled: boolean
+  baseUrl: string
+  model: string
+  maxTokens: number
+  useWorkspaceSymbols: boolean
+}
+
 export class FimInlineCompletionProvider
   implements vscode.InlineCompletionItemProvider
 {
@@ -26,7 +39,7 @@ export class FimInlineCompletionProvider
       return undefined
     }
 
-    const { prefix, suffix } = await getFimContext(
+    const { prefix, suffix } = await buildFimContext(
       document,
       position,
       config.useWorkspaceSymbols,
@@ -88,34 +101,24 @@ export class FimInlineCompletionProvider
       }
     | undefined {
     const apiConfig = vscode.workspace.getConfiguration('aria.api')
-    const fimConfig = vscode.workspace.getConfiguration('aria.fim')
+    const settings = getFimSettings()
 
-    if (fimConfig.get<boolean>('enabled') === false) {
+    if (!settings.enabled) {
       return undefined
     }
 
     const apiKey = apiConfig.get<string>('apiKey')?.trim() ?? ''
-    const model =
-      fimConfig.get<string>('model')?.trim() ||
-      apiConfig.get<string>('model')?.trim() ||
-      ''
-    const configuredBaseUrl =
-      fimConfig.get<string>('baseUrl')?.trim() ||
-      apiConfig.get<string>('baseUrl')?.trim() ||
-      ''
-    const baseUrl = configuredBaseUrl.replace(/\/+$/, '')
 
-    if (!apiKey || !model || !baseUrl) {
+    if (!apiKey || !settings.model || !settings.baseUrl) {
       return undefined
     }
 
     return {
       apiKey,
-      baseUrl,
-      model,
-      maxTokens: clampMaxTokens(fimConfig.get<number>('maxTokens') ?? 128),
-      useWorkspaceSymbols:
-        fimConfig.get<boolean>('useWorkspaceSymbols') !== false,
+      baseUrl: settings.baseUrl,
+      model: settings.model,
+      maxTokens: settings.maxTokens,
+      useWorkspaceSymbols: settings.useWorkspaceSymbols,
     }
   }
 
@@ -132,11 +135,14 @@ export class FimInlineCompletionProvider
       return true
     }
 
-    const linePrefix = document.lineAt(position).text.slice(0, position.character)
+    const linePrefix = document
+      .lineAt(position)
+      .text.slice(0, position.character)
 
     if (!linePrefix.trim()) {
       return (
-        position.line > 0 && document.lineAt(position.line - 1).text.trim() !== ''
+        position.line > 0 &&
+        document.lineAt(position.line - 1).text.trim() !== ''
       )
     }
 
@@ -144,11 +150,32 @@ export class FimInlineCompletionProvider
   }
 }
 
-async function getFimContext(
+export function getFimSettings(): FimSettings {
+  const apiConfig = vscode.workspace.getConfiguration('aria.api')
+  const fimConfig = vscode.workspace.getConfiguration('aria.fim')
+  const configuredBaseUrl =
+    fimConfig.get<string>('baseUrl')?.trim() ||
+    apiConfig.get<string>('baseUrl')?.trim() ||
+    ''
+
+  return {
+    enabled: fimConfig.get<boolean>('enabled') !== false,
+    baseUrl: configuredBaseUrl.replace(/\/+$/, ''),
+    model:
+      fimConfig.get<string>('model')?.trim() ||
+      apiConfig.get<string>('model')?.trim() ||
+      '',
+    maxTokens: clampMaxTokens(fimConfig.get<number>('maxTokens') ?? 128),
+    useWorkspaceSymbols:
+      fimConfig.get<boolean>('useWorkspaceSymbols') !== false,
+  }
+}
+
+export async function buildFimContext(
   document: vscode.TextDocument,
   position: vscode.Position,
   useWorkspaceSymbols: boolean,
-): Promise<{ prefix: string; suffix: string }> {
+): Promise<FimContext> {
   const documentStart = new vscode.Position(0, 0)
   const documentEnd = getDocumentEnd(document)
   const rawPrefix = tail(
@@ -191,9 +218,10 @@ async function getSymbolContext(
       ? getWorkspaceSymbolSummaries(document, position)
       : Promise.resolve([]),
   ])
+  const currentFilePath = vscode.workspace.asRelativePath(document.uri, false)
   const lines = [
-    ...formatSymbolSection('Current file symbols', documentSymbols),
-    ...formatSymbolSection('Workspace symbol matches', workspaceSymbols),
+    ...formatSymbolSection(`${currentFilePath} (current)`, documentSymbols),
+    ...formatSymbolSection('Workspace matches', workspaceSymbols),
   ]
 
   if (lines.length === 0) {
@@ -201,7 +229,7 @@ async function getSymbolContext(
   }
 
   return `${toCommentBlock(
-    ['Aria FIM context from VS Code symbols:', ...lines],
+    ['Relevant symbols:', ...lines],
     commentStyle,
   )}\n`
 }
@@ -210,10 +238,9 @@ async function getDocumentSymbolSummaries(
   document: vscode.TextDocument,
   position: vscode.Position,
 ): Promise<SymbolSummary[]> {
-  const symbols =
-    await vscode.commands.executeCommand<
-      Array<vscode.DocumentSymbol | vscode.SymbolInformation> | undefined
-    >('vscode.executeDocumentSymbolProvider', document.uri)
+  const symbols = await vscode.commands.executeCommand<
+    Array<vscode.DocumentSymbol | vscode.SymbolInformation> | undefined
+  >('vscode.executeDocumentSymbolProvider', document.uri)
 
   if (!symbols?.length) {
     return []
@@ -244,11 +271,9 @@ async function getWorkspaceSymbolSummaries(
     return []
   }
 
-  const symbols =
-    await vscode.commands.executeCommand<vscode.SymbolInformation[] | undefined>(
-      'vscode.executeWorkspaceSymbolProvider',
-      query,
-    )
+  const symbols = await vscode.commands.executeCommand<
+    vscode.SymbolInformation[] | undefined
+  >('vscode.executeWorkspaceSymbolProvider', query)
 
   return uniqueWorkspaceSymbols(symbols ?? [], document.uri)
     .slice(0, maxWorkspaceSymbols)
@@ -341,7 +366,10 @@ function uniqueWorkspaceSymbols(
       symbol.location.range.start.line
     }`
 
-    if (seen.has(key) || symbol.location.uri.toString() === currentUri.toString()) {
+    if (
+      seen.has(key) ||
+      symbol.location.uri.toString() === currentUri.toString()
+    ) {
       continue
     }
 
@@ -352,7 +380,10 @@ function uniqueWorkspaceSymbols(
   return unique
 }
 
-function toSymbolSummary(symbol: FlatSymbol, fallbackUri: vscode.Uri): SymbolSummary {
+function toSymbolSummary(
+  symbol: FlatSymbol,
+  fallbackUri: vscode.Uri,
+): SymbolSummary {
   return {
     name: symbol.name,
     kind: symbol.kind,
@@ -362,7 +393,9 @@ function toSymbolSummary(symbol: FlatSymbol, fallbackUri: vscode.Uri): SymbolSum
   }
 }
 
-function toWorkspaceSymbolSummary(symbol: vscode.SymbolInformation): SymbolSummary {
+function toWorkspaceSymbolSummary(
+  symbol: vscode.SymbolInformation,
+): SymbolSummary {
   return {
     name: symbol.name,
     kind: symbol.kind,
@@ -396,7 +429,9 @@ function formatSymbolSection(
   return [
     title,
     ...symbols.map(symbol => {
-      const container = symbol.containerName ? ` in ${symbol.containerName}` : ''
+      const container = symbol.containerName
+        ? ` in ${symbol.containerName}`
+        : ''
       const path = vscode.workspace.asRelativePath(symbol.uri, false)
 
       return `- ${symbolKindName(symbol.kind)} ${symbol.name}${container} (${path}:${symbol.line})`
@@ -491,7 +526,9 @@ function getDocumentEnd(document: vscode.TextDocument): vscode.Position {
 }
 
 function tail(value: string, maxLength: number): string {
-  return value.length > maxLength ? value.slice(value.length - maxLength) : value
+  return value.length > maxLength
+    ? value.slice(value.length - maxLength)
+    : value
 }
 
 function head(value: string, maxLength: number): string {
