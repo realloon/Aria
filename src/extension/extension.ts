@@ -9,12 +9,6 @@ import { AriaChatViewProvider } from './webview/AriaChatViewProvider.js'
 export function activate(context: vscode.ExtensionContext) {
   const chatViewProvider = new AriaChatViewProvider(context)
 
-  const openSettingsCommand = vscode.commands.registerCommand(
-    'aria.openSettings',
-    async () => {
-      await vscode.commands.executeCommand('workbench.action.openSettings', 'aria')
-    },
-  )
   const newThreadCommand = vscode.commands.registerCommand(
     'aria.newThread',
     async () => {
@@ -46,13 +40,12 @@ export function activate(context: vscode.ExtensionContext) {
       await showFimContext()
     },
   )
-  const configurationChangeRegistration = vscode.workspace.onDidChangeConfiguration(
-    event => {
+  const configurationChangeRegistration =
+    vscode.workspace.onDidChangeConfiguration(event => {
       if (event.affectsConfiguration('aria.api.provider')) {
         void chatViewProvider.postChatModelState()
       }
-    },
-  )
+    })
 
   const chatViewRegistration = vscode.window.registerWebviewViewProvider(
     AriaChatViewProvider.viewType,
@@ -70,7 +63,6 @@ export function activate(context: vscode.ExtensionContext) {
     )
 
   context.subscriptions.push(
-    openSettingsCommand,
     newThreadCommand,
     showHistoryCommand,
     deleteThreadCommand,

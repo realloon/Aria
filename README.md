@@ -40,7 +40,6 @@ selects the default chat and FIM model for the chosen provider.
 
 ## Current Contribution
 
-- Command: `Aria: Open Settings`
 - Command: `Aria: Show FIM Context`
 - Keybinding: `Cmd+Option+K` triggers FIM inline completion.
 - View: `Aria > Chat`

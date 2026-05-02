@@ -105,11 +105,6 @@
     },
     "commands": [
       {
-        "command": "aria.openSettings",
-        "title": "Aria: Open Settings",
-        "icon": "$(settings-gear)"
-      },
-      {
         "command": "aria.newThread",
         "title": "Aria: New Thread",
         "icon": "$(add)"
