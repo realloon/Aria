@@ -10,6 +10,11 @@ export type ExtensionMessage =
       type: 'threadState'
       messages: ChatMessage[]
     }
+  | {
+      type: 'chatModelState'
+      models: string[]
+      selectedModel: string
+    }
   | { type: 'assistantMessageStart' }
   | { type: 'assistantReasoningDelta'; text: string }
   | { type: 'assistantMessageDelta'; text: string }

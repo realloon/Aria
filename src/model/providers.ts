@@ -1,7 +1,4 @@
-import {
-  deepSeekBaseURL,
-  ProviderModel,
-} from './deepseek.js'
+import { deepSeekBaseURL, ProviderModel } from './deepseek.js'
 import { OpenAICompatible } from './openai-compatible.js'
 
 export type ModelProviderId = 'deepseek' | 'openai' | 'openai-compatible'
@@ -10,7 +7,7 @@ export interface ModelProvider {
   id: ModelProviderId
   label: string
   baseURL: string
-  chatModel: string
+  chatModels: string[]
   fimModel?: string
   reasoningMode: 'deepseek' | 'openai'
 }
@@ -20,22 +17,22 @@ export const modelProviders = {
     id: 'deepseek',
     label: 'DeepSeek',
     baseURL: deepSeekBaseURL,
-    chatModel: 'deepseek-v4-flash',
-    fimModel: 'deepseek-v4-pro',
+    chatModels: ['deepseek-v4-pro', 'deepseek-v4-flash'],
+    fimModel: 'deepseek-v4-flash',
     reasoningMode: 'deepseek',
   },
   openai: {
     id: 'openai',
     label: 'OpenAI',
     baseURL: 'https://api.openai.com/v1',
-    chatModel: 'gpt-5.3-codex',
+    chatModels: ['gpt-5.3-codex'],
     reasoningMode: 'openai',
   },
   'openai-compatible': {
     id: 'openai-compatible',
     label: 'OpenAI Compatible',
     baseURL: '',
-    chatModel: 'gpt-5.3-codex',
+    chatModels: ['gpt-5.3-codex'],
     reasoningMode: 'openai',
   },
 } as const satisfies Record<ModelProviderId, ModelProvider>

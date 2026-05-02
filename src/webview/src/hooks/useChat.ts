@@ -7,6 +7,8 @@ export function useChat() {
   const input = ref('')
   const loading = ref(false)
   const messages = ref<ChatMessage[]>([])
+  const chatModels = ref<string[]>([])
+  const selectedChatModel = ref('')
   const scrollHost = ref<HTMLElement | null>(null)
   const userOptions = ref<string[]>([])
 
@@ -39,6 +41,15 @@ export function useChat() {
     sendMessage()
   }
 
+  function selectChatModel(model: string): void {
+    if (loading.value || model === selectedChatModel.value) {
+      return
+    }
+
+    selectedChatModel.value = model
+    vscode.postMessage({ type: 'selectChatModel', model })
+  }
+
   async function scrollToEnd(): Promise<void> {
     await nextTick()
     scrollHost.value?.scrollTo({
@@ -55,6 +66,10 @@ export function useChat() {
         messages.value = message.messages
         userOptions.value = []
         void scrollToEnd()
+        return
+      case 'chatModelState':
+        chatModels.value = message.models
+        selectedChatModel.value = message.selectedModel
         return
       case 'assistantMessageStart':
         messages.value.push({
@@ -134,12 +149,15 @@ export function useChat() {
 
   return {
     canSend,
+    chatModels,
     input,
     loading,
     messages,
+    selectedChatModel,
     scrollHost,
     userOptions,
     chooseOption,
+    selectChatModel,
     sendMessage,
   }
 }

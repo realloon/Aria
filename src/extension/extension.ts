@@ -46,6 +46,13 @@ export function activate(context: vscode.ExtensionContext) {
       await showFimContext()
     },
   )
+  const configurationChangeRegistration = vscode.workspace.onDidChangeConfiguration(
+    event => {
+      if (event.affectsConfiguration('aria.api.provider')) {
+        void chatViewProvider.postChatModelState()
+      }
+    },
+  )
 
   const chatViewRegistration = vscode.window.registerWebviewViewProvider(
     AriaChatViewProvider.viewType,
@@ -69,6 +76,7 @@ export function activate(context: vscode.ExtensionContext) {
     deleteThreadCommand,
     showSystemPromptCommand,
     showFimContextCommand,
+    configurationChangeRegistration,
     chatViewRegistration,
     fimInlineCompletionRegistration,
   )

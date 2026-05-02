@@ -11,6 +11,7 @@ import {
 } from '../../model/index.js'
 import type {
   ChatReasoningEffort,
+  ModelProvider,
   ModelProviderId,
 } from '../../model/index.js'
 import {
@@ -22,6 +23,7 @@ import type { BuiltinToolContext } from '../../tools/types.js'
 type WebviewMessage =
   | { type: 'ready' }
   | { type: 'sendMessage'; text: string }
+  | { type: 'selectChatModel'; model: string }
 
 interface UiChatMessage {
   id: string
@@ -52,6 +54,7 @@ interface PendingUserInput {
 export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'aria.chatView'
   private static readonly threadStateKey = 'aria.threadState'
+  private static readonly chatModelKey = 'aria.chatModel'
 
   private readonly context: vscode.ExtensionContext
   private readonly threadState: ThreadState
@@ -159,9 +162,13 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     switch (message.type) {
       case 'ready':
         await this.postThreadState()
+        await this.postChatModelState()
         return
       case 'sendMessage':
         await this.handleUserText(message.text)
+        return
+      case 'selectChatModel':
+        await this.selectChatModel(message.model)
         return
     }
   }
@@ -201,18 +208,9 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     await this.postThreadState()
 
     const config = vscode.workspace.getConfiguration('aria.api')
-    const providerValue = config.get<string>('provider')?.trim()
+    const providerId = await this.getConfiguredProviderId(config)
 
-    let providerId: ModelProviderId
-
-    try {
-      providerId = parseModelProviderId(providerValue)
-    } catch (error) {
-      await this.postError(
-        error instanceof Error
-          ? error.message
-          : 'Configure aria.api.provider before sending a message.',
-      )
+    if (!providerId) {
       return
     }
 
@@ -233,6 +231,8 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       )
       return
     }
+
+    const chatModel = this.getSelectedChatModel(providerId)
 
     let reasoningEffort: ChatReasoningEffort
 
@@ -258,6 +258,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
         {
           apiKey,
           baseURL,
+          chatModel,
           providerId,
           reasoningEffort,
         },
@@ -303,6 +304,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     config: {
       apiKey: string
       baseURL?: string
+      chatModel: string
       providerId: ModelProviderId
       reasoningEffort: ChatReasoningEffort
     },
@@ -316,7 +318,6 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       typeof systemMessage.content === 'string'
         ? systemMessage.content
         : JSON.stringify(systemMessage.content)
-    const provider = modelProviders[config.providerId]
     const model =
       config.providerId === 'openai-compatible'
         ? createProviderModel(config.providerId, config.apiKey, systemPrompt, {
@@ -326,7 +327,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     model.messages.push(...this.getActiveThread().messages)
 
     for await (const delta of model.chat({
-      model: provider.chatModel,
+      model: config.chatModel,
       input: userText,
       tools,
       reasoningEffort: config.reasoningEffort,
@@ -531,6 +532,24 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     })
   }
 
+  async postChatModelState(): Promise<void> {
+    const config = vscode.workspace.getConfiguration('aria.api')
+    const providerId = await this.getConfiguredProviderId(config)
+
+    if (!providerId) {
+      return
+    }
+
+    const provider: ModelProvider = modelProviders[providerId]
+    const selectedModel = this.getSelectedChatModel(providerId)
+
+    await this.postMessage({
+      type: 'chatModelState',
+      models: provider.chatModels,
+      selectedModel,
+    })
+  }
+
   private async executeToolCall(
     toolCall: ChatCompletionMessageToolCall,
     toolContext: BuiltinToolContext,
@@ -551,6 +570,66 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
 
   private async postMessage(message: unknown): Promise<void> {
     await this.webviewView?.webview.postMessage(message)
+  }
+
+  private async getConfiguredProviderId(
+    config: vscode.WorkspaceConfiguration,
+  ): Promise<ModelProviderId | undefined> {
+    try {
+      return parseModelProviderId(config.get<string>('provider')?.trim())
+    } catch (error) {
+      await this.postError(
+        error instanceof Error
+          ? error.message
+          : 'Configure aria.api.provider before sending a message.',
+      )
+      return undefined
+    }
+  }
+
+  private getSelectedChatModel(providerId: ModelProviderId): string {
+    const provider: ModelProvider = modelProviders[providerId]
+    const selectedModels =
+      this.context.workspaceState.get<Record<string, string>>(
+        AriaChatViewProvider.chatModelKey,
+      ) ?? {}
+    const selectedModel = selectedModels[providerId]
+
+    return selectedModel && provider.chatModels.includes(selectedModel)
+      ? selectedModel
+      : provider.chatModels[0]!
+  }
+
+  private async selectChatModel(model: string): Promise<void> {
+    if (this.isThreadLocked()) {
+      await this.postChatModelState()
+      return
+    }
+
+    const config = vscode.workspace.getConfiguration('aria.api')
+    const providerId = await this.getConfiguredProviderId(config)
+
+    if (!providerId) {
+      return
+    }
+
+    const provider: ModelProvider = modelProviders[providerId]
+
+    if (!provider.chatModels.includes(model)) {
+      await this.postChatModelState()
+      return
+    }
+
+    const selectedModels =
+      this.context.workspaceState.get<Record<string, string>>(
+        AriaChatViewProvider.chatModelKey,
+      ) ?? {}
+
+    await this.context.workspaceState.update(AriaChatViewProvider.chatModelKey, {
+      ...selectedModels,
+      [providerId]: model,
+    })
+    await this.postChatModelState()
   }
 
   private async getSystemMessage(): Promise<ChatCompletionMessageParam> {

@@ -5,12 +5,15 @@ import { useChat } from './hooks/useChat.js'
 
 const {
   canSend,
+  chatModels,
   input,
   loading,
   messages,
+  selectedChatModel,
   scrollHost,
   userOptions,
   chooseOption,
+  selectChatModel,
   sendMessage,
 } = useChat()
 </script>
@@ -25,9 +28,12 @@ const {
   <ChatComposer
     v-model="input"
     :can-send="canSend"
+    :models="chatModels"
+    :selected-model="selectedChatModel"
     :loading="loading"
     :options="userOptions"
     @choose="chooseOption"
+    @select-model="selectChatModel"
     @send="sendMessage"
   />
 </template>
