@@ -233,10 +233,7 @@ async function getSymbolContext(
     return ''
   }
 
-  return `${toCommentBlock(
-    ['Relevant symbols:', ...lines],
-    commentStyle,
-  )}\n`
+  return `${toCommentBlock(['Relevant symbols:', ...lines], commentStyle)}\n`
 }
 
 function buildLocalFimWindow(
@@ -349,7 +346,9 @@ function getCurrentStructure(
   position: vscode.Position,
 ): FlatSymbol | undefined {
   return symbols
-    .filter(symbol => isStructureKind(symbol.kind) && symbol.range.contains(position))
+    .filter(
+      symbol => isStructureKind(symbol.kind) && symbol.range.contains(position),
+    )
     .sort((left, right) => rangeSize(left.range) - rangeSize(right.range))[0]
 }
 
@@ -383,9 +382,17 @@ async function getRelatedStructureSummaries(
   const position = currentStructure.selectionRange.start
   const [implementations, definitions, typeDefinitions, references] =
     await Promise.all([
-      getLspLocations('vscode.executeImplementationProvider', document, position),
+      getLspLocations(
+        'vscode.executeImplementationProvider',
+        document,
+        position,
+      ),
       getLspLocations('vscode.executeDefinitionProvider', document, position),
-      getLspLocations('vscode.executeTypeDefinitionProvider', document, position),
+      getLspLocations(
+        'vscode.executeTypeDefinitionProvider',
+        document,
+        position,
+      ),
       getReferenceLocations(document, position),
     ])
   const candidates = [
@@ -419,11 +426,9 @@ async function getLspLocations(
   position: vscode.Position,
 ): Promise<vscode.Location[]> {
   const result = await withTimeout(
-    vscode.commands.executeCommand<Array<vscode.Location | vscode.LocationLink>>(
-      command,
-      document.uri,
-      position,
-    ),
+    vscode.commands.executeCommand<
+      Array<vscode.Location | vscode.LocationLink>
+    >(command, document.uri, position),
     lspCommandTimeoutMs,
   )
 
@@ -458,7 +463,9 @@ async function toRelatedStructureSummary(
       getCurrentStructure(symbols, location.range.start) ??
       symbols
         .filter(symbol => symbol.range.contains(location.range.start))
-        .sort((left, right) => rangeSize(left.range) - rangeSize(right.range))[0]
+        .sort(
+          (left, right) => rangeSize(left.range) - rangeSize(right.range),
+        )[0]
 
     if (!structure) {
       return undefined

@@ -25,11 +25,14 @@ interface PendingUserInput {
 export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'aria.chatView'
 
+  private readonly context: vscode.ExtensionContext
   private readonly messages: ChatCompletionMessageParam[] = []
   private pendingUserInput?: PendingUserInput
   private webviewView?: vscode.WebviewView
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(context: vscode.ExtensionContext) {
+    this.context = context
+  }
 
   async showSystemPrompt(): Promise<void> {
     const systemMessage = await this.getSystemMessage()

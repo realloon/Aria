@@ -1,6 +1,5 @@
-import OpenAI from 'openai'
-import type { CompletionCreateParamsNonStreaming } from 'openai/resources/completions'
 import type { ModelApiConfig } from './index.js'
+import OpenAI from 'openai'
 
 export interface FimCompletionInput {
   prefix: string
@@ -12,7 +11,7 @@ export async function completeFim(
   config: ModelApiConfig,
   input: FimCompletionInput,
   options: { signal?: AbortSignal } = {},
-): Promise<string> {
+) {
   const client = new OpenAI({
     apiKey: config.apiKey,
     baseURL: config.baseUrl,
@@ -24,9 +23,7 @@ export async function completeFim(
       prompt: input.prefix,
       suffix: input.suffix,
       max_tokens: input.maxTokens,
-      temperature: 0,
-      stream: false,
-    } satisfies CompletionCreateParamsNonStreaming,
+    },
     {
       signal: options.signal,
       timeout: 10_000,
