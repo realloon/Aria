@@ -15,6 +15,24 @@ export function activate(context: vscode.ExtensionContext) {
       await vscode.commands.executeCommand('workbench.action.openSettings', 'aria')
     },
   )
+  const newThreadCommand = vscode.commands.registerCommand(
+    'aria.newThread',
+    async () => {
+      await chatViewProvider.createNewThread()
+    },
+  )
+  const showHistoryCommand = vscode.commands.registerCommand(
+    'aria.showHistory',
+    async () => {
+      await chatViewProvider.showHistory()
+    },
+  )
+  const deleteThreadCommand = vscode.commands.registerCommand(
+    'aria.deleteThread',
+    async () => {
+      await chatViewProvider.deleteThread()
+    },
+  )
 
   const showSystemPromptCommand = vscode.commands.registerCommand(
     'aria.showSystemPrompt',
@@ -46,6 +64,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     openSettingsCommand,
+    newThreadCommand,
+    showHistoryCommand,
+    deleteThreadCommand,
     showSystemPromptCommand,
     showFimContextCommand,
     chatViewRegistration,

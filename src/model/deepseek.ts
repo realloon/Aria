@@ -20,14 +20,10 @@ export interface DeepSeekChatInput extends ModelChatInput {
   reasoningEffort: ChatReasoningEffort
 }
 
-export type ModelProviderId = 'deepseek' | 'openai'
+export const deepSeekBaseURL = 'https://api.deepseek.com/beta'
 
-export interface ModelProvider {
-  id: ModelProviderId
-  label: string
+export interface ProviderModelOptions {
   baseURL: string
-  chatModel: string
-  fimModel?: string
   reasoningMode: 'deepseek' | 'openai'
 }
 
@@ -48,85 +44,51 @@ interface ChatRequestOptions {
   systemPrompt?: string
 }
 
-export const modelProviders = {
-  deepseek: {
-    id: 'deepseek',
-    label: 'DeepSeek',
-    baseURL: 'https://api.deepseek.com/beta',
-    chatModel: 'deepseek-v4-flash',
-    fimModel: 'deepseek-v4-pro',
-    reasoningMode: 'deepseek',
-  },
-  openai: {
-    id: 'openai',
-    label: 'OpenAI',
-    baseURL: 'https://api.openai.com/v1',
-    chatModel: 'gpt-5.3-codex',
-    reasoningMode: 'openai',
-  },
-} as const satisfies Record<ModelProviderId, ModelProvider>
-
-export function parseModelProviderId(
-  value: string | undefined,
-): ModelProviderId {
-  switch (value) {
-    case undefined:
-    case '':
-    case 'deepseek':
-      return 'deepseek'
-    case 'openai':
-      return 'openai'
-    default:
-      throw new Error('Configure aria.api.provider before sending a message.')
-  }
-}
-
 export class DeepSeek extends Model<DeepSeekChatInput> {
   constructor(apiKey: string, systemPrompt?: string) {
-    super(modelProviders.deepseek.baseURL, apiKey, systemPrompt)
+    super(deepSeekBaseURL, apiKey, systemPrompt)
   }
 
   override async *chat(
     input: DeepSeekChatInput,
   ): AsyncGenerator<ModelChatEvent> {
     yield* runChat(this.client, this.messages, input, {
-      ...getChatRequestOptions(modelProviders.deepseek, input.reasoningEffort),
+      ...getChatRequestOptions(
+        { baseURL: deepSeekBaseURL, reasoningMode: 'deepseek' },
+        input.reasoningEffort,
+      ),
       systemPrompt: this.systemPrompt,
     })
   }
 }
 
 export class ProviderModel extends Model<DeepSeekChatInput> {
-  private readonly provider: ModelProvider
+  private readonly options: ProviderModelOptions
 
-  constructor(provider: ModelProvider, apiKey: string, systemPrompt?: string) {
-    super(provider.baseURL, apiKey, systemPrompt)
-    this.provider = provider
+  constructor(
+    options: ProviderModelOptions,
+    apiKey: string,
+    systemPrompt?: string,
+  ) {
+    super(options.baseURL, apiKey, systemPrompt)
+    this.options = options
   }
 
   override async *chat(
     input: DeepSeekChatInput,
   ): AsyncGenerator<ModelChatEvent> {
     yield* runChat(this.client, this.messages, input, {
-      ...getChatRequestOptions(this.provider, input.reasoningEffort),
+      ...getChatRequestOptions(this.options, input.reasoningEffort),
       systemPrompt: this.systemPrompt,
     })
   }
 }
 
-export function createProviderModel(
-  providerId: ModelProviderId,
-  apiKey: string,
-  systemPrompt?: string,
-): ProviderModel {
-  return new ProviderModel(modelProviders[providerId], apiKey, systemPrompt)
-}
-
 function getChatRequestOptions(
-  provider: ModelProvider,
+  options: ProviderModelOptions,
   reasoningEffort: ChatReasoningEffort,
 ): Pick<ChatRequestOptions, 'reasoningEffort' | 'extraBody'> {
-  if (provider.reasoningMode === 'deepseek') {
+  if (options.reasoningMode === 'deepseek') {
     return {
       reasoningEffort,
       extraBody: {

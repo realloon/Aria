@@ -1,9 +1,5 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import type {
-  ChatMessage,
-  ChatThreadSummary,
-  ExtensionMessage,
-} from '../types/chat.js'
+import type { ChatMessage, ExtensionMessage } from '../types/chat.js'
 
 const vscode = acquireVsCodeApi()
 
@@ -12,14 +8,9 @@ export function useChat() {
   const loading = ref(false)
   const messages = ref<ChatMessage[]>([])
   const scrollHost = ref<HTMLElement | null>(null)
-  const threads = ref<ChatThreadSummary[]>([])
-  const activeThreadId = ref('')
   const userOptions = ref<string[]>([])
 
   const canSend = computed(() => input.value.trim().length > 0 && !loading.value)
-  const threadControlsDisabled = computed(
-    () => loading.value || userOptions.value.length > 0,
-  )
 
   function sendMessage(): void {
     const text = input.value.trim()
@@ -37,30 +28,6 @@ export function useChat() {
     input.value = ''
     vscode.postMessage({ type: 'sendMessage', text })
     void scrollToEnd()
-  }
-
-  function createThread(): void {
-    if (threadControlsDisabled.value) {
-      return
-    }
-
-    vscode.postMessage({ type: 'newThread' })
-  }
-
-  function selectThread(threadId: string): void {
-    if (threadControlsDisabled.value || threadId === activeThreadId.value) {
-      return
-    }
-
-    vscode.postMessage({ type: 'selectThread', threadId })
-  }
-
-  function deleteThread(threadId: string): void {
-    if (threadControlsDisabled.value || threads.value.length <= 1) {
-      return
-    }
-
-    vscode.postMessage({ type: 'deleteThread', threadId })
   }
 
   function chooseOption(option: string): void {
@@ -85,8 +52,6 @@ export function useChat() {
 
     switch (message.type) {
       case 'threadState':
-        activeThreadId.value = message.activeThreadId
-        threads.value = message.threads
         messages.value = message.messages
         userOptions.value = []
         void scrollToEnd()
@@ -168,19 +133,13 @@ export function useChat() {
   }
 
   return {
-    activeThreadId,
     canSend,
     input,
     loading,
     messages,
     scrollHost,
-    threadControlsDisabled,
-    threads,
     userOptions,
     chooseOption,
-    createThread,
-    deleteThread,
-    selectThread,
     sendMessage,
   }
 }

@@ -5,18 +5,24 @@ export type {
   ModelCompletionInput,
 } from './abstract.js'
 export {
-  createProviderModel,
   DeepSeek,
+  ProviderModel,
+} from './deepseek.js'
+export {
+  createProviderModel,
   modelProviders,
   parseModelProviderId,
-} from './deepseek.js'
+} from './providers.js'
 export { OpenAICompatible, runOpenAICompatibleChat } from './openai-compatible.js'
 export type {
   ChatReasoningEffort,
   DeepSeekChatInput,
+  ProviderModelOptions,
+} from './deepseek.js'
+export type {
   ModelProvider,
   ModelProviderId,
-} from './deepseek.js'
+} from './providers.js'
 export type {
   OpenAICompatibleChatInput,
   OpenAICompatibleOptions,

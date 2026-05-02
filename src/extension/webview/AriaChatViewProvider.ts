@@ -22,9 +22,6 @@ import type { BuiltinToolContext } from '../../tools/types.js'
 type WebviewMessage =
   | { type: 'ready' }
   | { type: 'sendMessage'; text: string }
-  | { type: 'newThread' }
-  | { type: 'selectThread'; threadId: string }
-  | { type: 'deleteThread'; threadId: string }
 
 interface UiChatMessage {
   id: string
@@ -81,6 +78,63 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     await vscode.window.showTextDocument(document, { preview: false })
   }
 
+  async createNewThread(): Promise<void> {
+    await this.createThread()
+    this.webviewView?.show(true)
+  }
+
+  async showHistory(): Promise<void> {
+    if (this.isThreadLocked()) {
+      return
+    }
+
+    const selected = await vscode.window.showQuickPick(
+      this.threadState.threads.map(thread => ({
+        label: thread.title,
+        description:
+          thread.id === this.threadState.activeThreadId ? 'current' : undefined,
+        detail: new Date(thread.updatedAt).toLocaleString(),
+        threadId: thread.id,
+      })),
+      {
+        placeHolder: 'Select chat history',
+      },
+    )
+
+    if (!selected) {
+      return
+    }
+
+    await this.selectThread(selected.threadId)
+    this.webviewView?.show(true)
+  }
+
+  async deleteThread(): Promise<void> {
+    if (this.isThreadLocked()) {
+      return
+    }
+
+    const selected = await vscode.window.showQuickPick(
+      this.threadState.threads.map(thread => ({
+        label: thread.title,
+        description:
+          thread.id === this.threadState.activeThreadId ? 'current' : undefined,
+        detail: new Date(thread.updatedAt).toLocaleString(),
+        threadId: thread.id,
+      })),
+      {
+        placeHolder: 'Select thread to delete',
+      },
+    )
+
+    if (!selected) {
+      return
+    }
+
+    await this.deleteThreadById(selected.threadId)
+    this.webviewView?.show(true)
+  }
+
   resolveWebviewView(webviewView: vscode.WebviewView): void {
     this.webviewView = webviewView
     const webview = webviewView.webview
@@ -108,15 +162,6 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
         return
       case 'sendMessage':
         await this.handleUserText(message.text)
-        return
-      case 'newThread':
-        await this.createThread()
-        return
-      case 'selectThread':
-        await this.selectThread(message.threadId)
-        return
-      case 'deleteThread':
-        await this.deleteThread(message.threadId)
         return
     }
   }
@@ -180,6 +225,15 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       return
     }
 
+    const baseURL = getProviderBaseURL(config, providerId)
+
+    if (providerId === 'openai-compatible' && !baseURL) {
+      await this.postError(
+        'Configure aria.api.baseURLs.openai-compatible before sending a message.',
+      )
+      return
+    }
+
     let reasoningEffort: ChatReasoningEffort
 
     try {
@@ -203,6 +257,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       const messages = await this.runAssistantTurn(
         {
           apiKey,
+          baseURL,
           providerId,
           reasoningEffort,
         },
@@ -247,6 +302,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   private async runAssistantTurn(
     config: {
       apiKey: string
+      baseURL?: string
       providerId: ModelProviderId
       reasoningEffort: ChatReasoningEffort
     },
@@ -261,11 +317,12 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
         ? systemMessage.content
         : JSON.stringify(systemMessage.content)
     const provider = modelProviders[config.providerId]
-    const model = createProviderModel(
-      config.providerId,
-      config.apiKey,
-      systemPrompt,
-    )
+    const model =
+      config.providerId === 'openai-compatible'
+        ? createProviderModel(config.providerId, config.apiKey, systemPrompt, {
+            baseURL: config.baseURL,
+          })
+        : createProviderModel(config.providerId, config.apiKey, systemPrompt)
     model.messages.push(...this.getActiveThread().messages)
 
     for await (const delta of model.chat({
@@ -383,11 +440,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     await this.postThreadState()
   }
 
-  private async deleteThread(threadId: string): Promise<void> {
-    if (this.isThreadLocked() || this.threadState.threads.length <= 1) {
-      return
-    }
-
+  private async deleteThreadById(threadId: string): Promise<void> {
     const index = this.threadState.threads.findIndex(
       thread => thread.id === threadId,
     )
@@ -398,7 +451,11 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
 
     this.threadState.threads.splice(index, 1)
 
-    if (this.threadState.activeThreadId === threadId) {
+    if (this.threadState.threads.length === 0) {
+      const thread = this.createEmptyThread()
+      this.threadState.threads.push(thread)
+      this.threadState.activeThreadId = thread.id
+    } else if (this.threadState.activeThreadId === threadId) {
       this.threadState.activeThreadId =
         this.threadState.threads[Math.max(index - 1, 0)]?.id ??
         this.threadState.threads[0]!.id
@@ -470,12 +527,6 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
 
     await this.postMessage({
       type: 'threadState',
-      activeThreadId: this.threadState.activeThreadId,
-      threads: this.threadState.threads.map(thread => ({
-        id: thread.id,
-        title: thread.title,
-        updatedAt: thread.updatedAt,
-      })),
       messages: activeThread.uiMessages,
     })
   }
@@ -660,6 +711,17 @@ function getProviderApiKey(
   providerId: ModelProviderId,
 ): string {
   return config.get<string>(`apiKeys.${providerId}`)?.trim() ?? ''
+}
+
+function getProviderBaseURL(
+  config: vscode.WorkspaceConfiguration,
+  providerId: ModelProviderId,
+): string | undefined {
+  if (providerId !== 'openai-compatible') {
+    return undefined
+  }
+
+  return config.get<string>(`baseURLs.${providerId}`)?.trim() ?? ''
 }
 
 function normalizeThreadTitle(value: unknown): string {

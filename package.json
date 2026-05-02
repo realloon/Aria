@@ -45,7 +45,8 @@
           "type": "string",
           "enum": [
             "deepseek",
-            "openai"
+            "openai",
+            "openai-compatible"
           ],
           "default": "deepseek",
           "description": "Model provider used by Aria."
@@ -59,6 +60,16 @@
           "type": "string",
           "default": "",
           "description": "OpenAI API key used by Aria."
+        },
+        "aria.api.apiKeys.openai-compatible": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI-compatible API key used by Aria."
+        },
+        "aria.api.baseURLs.openai-compatible": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI-compatible API base URL used by Aria."
         },
         "aria.api.reasoningEffort": {
           "type": "string",
@@ -99,6 +110,21 @@
         "icon": "$(settings-gear)"
       },
       {
+        "command": "aria.newThread",
+        "title": "Aria: New Thread",
+        "icon": "$(add)"
+      },
+      {
+        "command": "aria.showHistory",
+        "title": "Aria: History",
+        "icon": "$(history)"
+      },
+      {
+        "command": "aria.deleteThread",
+        "title": "Aria: Delete Thread",
+        "icon": "$(trash)"
+      },
+      {
         "command": "aria.showSystemPrompt",
         "title": "Aria: Show System Prompt"
       },
@@ -118,9 +144,19 @@
     "menus": {
       "view/title": [
         {
-          "command": "aria.openSettings",
+          "command": "aria.newThread",
           "when": "view == aria.chatView",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "aria.deleteThread",
+          "when": "view == aria.chatView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "aria.showHistory",
+          "when": "view == aria.chatView",
+          "group": "navigation@3"
         }
       ]
     },

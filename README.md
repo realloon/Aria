@@ -32,9 +32,11 @@ Before sending messages:
 2. Configure the API key for that provider in VS Code Settings:
    - `aria.api.apiKeys.deepseek`
    - `aria.api.apiKeys.openai`
+   - `aria.api.apiKeys.openai-compatible`
+3. Configure `aria.api.baseURLs.openai-compatible` when using `openai-compatible`.
 
-Supported providers are `deepseek` and `openai`. Aria selects the default chat
-and FIM model for the chosen provider.
+Supported providers are `deepseek`, `openai`, and `openai-compatible`. Aria
+selects the default chat and FIM model for the chosen provider.
 
 ## Current Contribution
 
