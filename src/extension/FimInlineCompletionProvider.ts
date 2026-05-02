@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { completeFim } from '../model/index.js'
+import { DeepSeek } from '../model/index.js'
 
 const maxPrefixLength = 16_000
 const maxSuffixLength = 8_000
@@ -17,7 +17,6 @@ export interface FimContext {
 
 export interface FimSettings {
   enabled: boolean
-  baseUrl: string
   model: string
   maxTokens: number
   useWorkspaceSymbols: boolean
@@ -58,19 +57,13 @@ export class FimInlineCompletionProvider
     })
 
     try {
-      const completion = await completeFim(
-        {
-          apiKey: config.apiKey,
-          baseUrl: config.baseUrl,
-          model: config.model,
-        },
-        {
-          prefix,
-          suffix: suffix || undefined,
-          maxTokens: config.maxTokens,
-        },
-        { signal: abortController.signal },
-      )
+      const completion = await new DeepSeek(config.apiKey).complete({
+        model: config.model,
+        prefix,
+        suffix: suffix || undefined,
+        maxTokens: config.maxTokens,
+        signal: abortController.signal,
+      })
 
       if (token.isCancellationRequested || !completion.trim()) {
         return undefined
@@ -97,7 +90,6 @@ export class FimInlineCompletionProvider
   private getConfig():
     | {
         apiKey: string
-        baseUrl: string
         model: string
         maxTokens: number
         useWorkspaceSymbols: boolean
@@ -112,13 +104,12 @@ export class FimInlineCompletionProvider
 
     const apiKey = apiConfig.get<string>('apiKey')?.trim() ?? ''
 
-    if (!apiKey || !settings.model || !settings.baseUrl) {
+    if (!apiKey || !settings.model) {
       return undefined
     }
 
     return {
       apiKey,
-      baseUrl: settings.baseUrl,
       model: settings.model,
       maxTokens: settings.maxTokens,
       useWorkspaceSymbols: settings.useWorkspaceSymbols,
@@ -154,23 +145,13 @@ export class FimInlineCompletionProvider
 }
 
 export function getFimSettings(): FimSettings {
-  const apiConfig = vscode.workspace.getConfiguration('aria.api')
   const fimConfig = vscode.workspace.getConfiguration('aria.fim')
-  const configuredBaseUrl =
-    fimConfig.get<string>('baseUrl')?.trim() ||
-    apiConfig.get<string>('baseUrl')?.trim() ||
-    ''
 
   return {
-    enabled: fimConfig.get<boolean>('enabled') !== false,
-    baseUrl: configuredBaseUrl.replace(/\/+$/, ''),
-    model:
-      fimConfig.get<string>('model')?.trim() ||
-      apiConfig.get<string>('model')?.trim() ||
-      '',
-    maxTokens: clampMaxTokens(fimConfig.get<number>('maxTokens') ?? 128),
-    useWorkspaceSymbols:
-      fimConfig.get<boolean>('useWorkspaceSymbols') !== false,
+    enabled: fimConfig.get<boolean>('enabled') === true,
+    model: fimConfig.get<string>('model')?.trim() ?? '',
+    maxTokens: clampMaxTokens(fimConfig.get<number>('maxTokens')),
+    useWorkspaceSymbols: fimConfig.get<boolean>('useWorkspaceSymbols') === true,
   }
 }
 
@@ -875,9 +856,9 @@ function normalizeEol(value: string, eol: vscode.EndOfLine): string {
   return value.replace(/\r\n/g, '\n')
 }
 
-function clampMaxTokens(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 128
+function clampMaxTokens(value: number | undefined): number {
+  if (value === undefined || !Number.isFinite(value)) {
+    throw new Error('Configure aria.fim.maxTokens before using FIM.')
   }
 
   return Math.min(Math.max(Math.trunc(value), 1), 4096)

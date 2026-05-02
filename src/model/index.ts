@@ -1,10 +1,11 @@
-export interface ModelApiConfig {
-  apiKey: string
-  baseUrl: string
-  model: string
-}
-
-export { streamChat } from './chat.js'
-export type { ChatStreamDelta } from './chat.js'
-export { completeFim } from './fim.js'
-export type { FimCompletionInput } from './fim.js'
+export { Model } from './abstract.js'
+export type {
+  ModelChatEvent,
+  ModelChatInput,
+  ModelCompletionInput,
+} from './abstract.js'
+export { DeepSeek, modelProvider } from './deepseek.js'
+export type {
+  ChatReasoningEffort,
+  DeepSeekChatInput,
+} from './deepseek.js'

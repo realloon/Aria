@@ -1,20 +1,15 @@
 import * as vscode from 'vscode'
 import type {
-  ChatCompletionAssistantMessageParam,
   ChatCompletionMessageParam,
-  ChatCompletionToolMessageParam,
   ChatCompletionMessageToolCall,
 } from 'openai/resources/chat/completions'
-import { streamChat } from '../../model/index.js'
+import { DeepSeek } from '../../model/index.js'
+import type { ChatReasoningEffort } from '../../model/index.js'
 import {
   builtinToolDefinitions,
   executeBuiltinTool,
 } from '../../tools/index.js'
 import type { BuiltinToolContext } from '../../tools/types.js'
-
-type AssistantMessageWithReasoning = ChatCompletionAssistantMessageParam & {
-  reasoning_content?: string
-}
 
 type WebviewMessage = { type: 'ready' } | { type: 'sendMessage'; text: string }
 
@@ -99,7 +94,6 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
 
   private async sendMessage(userText: string): Promise<void> {
     const config = vscode.workspace.getConfiguration('aria.api')
-    const baseUrl = config.get<string>('baseUrl')?.trim() ?? ''
     const model = config.get<string>('model')?.trim() ?? ''
     const apiKey = config.get<string>('apiKey')?.trim() ?? ''
 
@@ -108,33 +102,41 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       return
     }
 
-    if (!baseUrl) {
-      await this.postError(
-        'Configure aria.api.baseUrl before sending a message.',
-      )
-      return
-    }
-
     if (!model) {
       await this.postError('Configure aria.api.model before sending a message.')
       return
     }
 
-    const messageStartIndex = this.messages.length
-    this.messages.push({ role: 'user', content: userText })
+    let reasoningEffort: ChatReasoningEffort
+
+    try {
+      reasoningEffort = parseReasoningEffort(
+        config.get<string>('reasoningEffort')?.trim(),
+      )
+    } catch (error) {
+      await this.postError(
+        error instanceof Error
+          ? error.message
+          : 'Configure aria.api.reasoningEffort before sending a message.',
+      )
+      return
+    }
+
     await this.postMessage({ type: 'loading', loading: true })
 
     try {
       await this.postMessage({ type: 'assistantMessageStart' })
 
-      const turnMessages = await this.runAssistantTurn({
-        apiKey,
-        baseUrl,
-        model,
-      })
-      this.messages.push(...turnMessages)
+      const messages = await this.runAssistantTurn(
+        {
+          apiKey,
+          model,
+          reasoningEffort,
+        },
+        userText,
+      )
+      this.messages.splice(0, this.messages.length, ...messages)
     } catch (error) {
-      this.messages.splice(messageStartIndex)
       await this.postError(
         error instanceof Error ? error.message : 'Model request failed.',
       )
@@ -147,129 +149,70 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     await this.postMessage({ type: 'error', message })
   }
 
-  private async runAssistantTurn(config: {
-    apiKey: string
-    baseUrl: string
-    model: string
-  }): Promise<ChatCompletionMessageParam[]> {
-    const maxToolRounds = 5
-    const turnMessages: ChatCompletionMessageParam[] = []
+  private async runAssistantTurn(
+    config: {
+      apiKey: string
+      model: string
+      reasoningEffort: ChatReasoningEffort
+    },
+    userText: string,
+  ): Promise<ChatCompletionMessageParam[]> {
     const toolContext = this.getToolContext()
     const tools = toolContext ? builtinToolDefinitions : []
+    const systemMessage = await this.getSystemMessage()
+    const systemPrompt =
+      typeof systemMessage.content === 'string'
+        ? systemMessage.content
+        : JSON.stringify(systemMessage.content)
+    const model = new DeepSeek(config.apiKey, systemPrompt)
+    model.messages.push(...this.messages)
 
-    for (let round = 0; round < maxToolRounds; round += 1) {
-      let responseText = ''
-      let reasoningText = ''
-      let toolCalls: ChatCompletionMessageToolCall[] = []
-      const messages = [
-        await this.getSystemMessage(),
-        ...this.messages,
-        ...turnMessages,
-      ] satisfies ChatCompletionMessageParam[]
-
-      for await (const delta of streamChat(config, messages, tools)) {
-        if (delta.type === 'content') {
-          responseText += delta.text
-          await this.postMessage({
-            type: 'assistantMessageDelta',
-            text: delta.text,
-          })
-          continue
-        }
-
-        if (delta.type === 'reasoning') {
-          reasoningText += delta.text
-          await this.postMessage({
-            type: 'assistantReasoningDelta',
-            text: delta.text,
-          })
-          continue
-        }
-
-        toolCalls = delta.toolCalls
+    for await (const delta of model.chat({
+      model: config.model,
+      input: userText,
+      tools,
+      reasoningEffort: config.reasoningEffort,
+      executeTool: toolContext
+        ? toolCall => this.executeToolCall(toolCall, toolContext)
+        : undefined,
+      maxToolRounds: tools.length > 0 ? 5 : undefined,
+    })) {
+      if (delta.type === 'content') {
+        await this.postMessage({
+          type: 'assistantMessageDelta',
+          text: delta.text,
+        })
+        continue
       }
 
-      if (toolCalls.length === 0) {
-        turnMessages.push(
-          this.createAssistantMessage({
-            content: responseText,
-            reasoningContent: reasoningText,
-          }),
-        )
-        return turnMessages
+      if (delta.type === 'reasoning') {
+        await this.postMessage({
+          type: 'assistantReasoningDelta',
+          text: delta.text,
+        })
+        continue
       }
-
-      turnMessages.push(
-        this.createAssistantMessage({
-          content: responseText,
-          reasoningContent: reasoningText,
-          toolCalls,
-        }),
-      )
-
-      if (!toolContext) {
-        throw new Error('Open a workspace before using tools.')
-      }
-
-      turnMessages.push(
-        ...(await Promise.all(
-          toolCalls.map(toolCall =>
-            this.executeToolCall(toolCall, toolContext),
-          ),
-        )),
-      )
     }
 
-    throw new Error('Stopped after too many tool call rounds.')
+    return model.messages
   }
 
   private async executeToolCall(
     toolCall: ChatCompletionMessageToolCall,
     toolContext: BuiltinToolContext,
-  ): Promise<ChatCompletionToolMessageParam> {
+  ): Promise<string> {
     if (toolCall.type !== 'function') {
-      return {
-        role: 'tool',
-        tool_call_id: toolCall.id,
-        content: JSON.stringify({
-          ok: false,
-          error: `Unsupported tool call type: ${toolCall.type}`,
-        }),
-      }
+      return JSON.stringify({
+        ok: false,
+        error: `Unsupported tool call type: ${toolCall.type}`,
+      })
     }
 
-    const content = await executeBuiltinTool(
+    return await executeBuiltinTool(
       toolCall.function.name,
       toolCall.function.arguments,
       toolContext,
     )
-
-    return {
-      role: 'tool',
-      tool_call_id: toolCall.id,
-      content,
-    }
-  }
-
-  private createAssistantMessage(options: {
-    content: string
-    reasoningContent: string
-    toolCalls?: ChatCompletionMessageToolCall[]
-  }): AssistantMessageWithReasoning {
-    const message: AssistantMessageWithReasoning = {
-      role: 'assistant',
-      content: options.content || null,
-    }
-
-    if (options.reasoningContent) {
-      message.reasoning_content = options.reasoningContent
-    }
-
-    if (options.toolCalls) {
-      message.tool_calls = options.toolCalls
-    }
-
-    return message
   }
 
   private async postMessage(message: unknown): Promise<void> {
@@ -406,4 +349,20 @@ function getNonce(): string {
   }
 
   return text
+}
+
+function parseReasoningEffort(value: string | undefined): ChatReasoningEffort {
+  switch (value) {
+    case 'none':
+    case 'minimal':
+    case 'low':
+    case 'medium':
+    case 'high':
+    case 'xhigh':
+      return value
+    default:
+      throw new Error(
+        'Configure aria.api.reasoningEffort before sending a message.',
+      )
+  }
 }

@@ -18,7 +18,6 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/deepseek": "^2.0.32",
     "markdown-it": "^14.1.1",
     "openai": "^6.35.0"
   },
@@ -42,11 +41,6 @@
     "configuration": {
       "title": "Aria",
       "properties": {
-        "aria.api.baseUrl": {
-          "type": "string",
-          "default": "https://api.deepseek.com",
-          "description": "Base URL for DeepSeek API requests."
-        },
         "aria.api.model": {
           "type": "string",
           "default": "",
@@ -57,20 +51,28 @@
           "default": "",
           "description": "API key used by Aria for model requests."
         },
+        "aria.api.reasoningEffort": {
+          "type": "string",
+          "enum": [
+            "none",
+            "minimal",
+            "low",
+            "medium",
+            "high",
+            "xhigh"
+          ],
+          "default": "high",
+          "description": "Reasoning effort sent to the chat model."
+        },
         "aria.fim.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Enable FIM inline completions in the editor."
         },
-        "aria.fim.baseUrl": {
-          "type": "string",
-          "default": "",
-          "description": "Base URL for FIM completions. Defaults to aria.api.baseUrl."
-        },
         "aria.fim.model": {
           "type": "string",
           "default": "",
-          "description": "Model name used for FIM completions. Defaults to aria.api.model."
+          "description": "Model name used for FIM completions."
         },
         "aria.fim.maxTokens": {
           "type": "number",
