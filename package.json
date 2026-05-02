@@ -18,6 +18,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/deepseek": "^2.0.32",
     "markdown-it": "^14.1.1",
     "openai": "^6.35.0"
   },
@@ -43,8 +44,8 @@
       "properties": {
         "aria.api.baseUrl": {
           "type": "string",
-          "default": "https://api.openai.com/v1",
-          "description": "Base URL for an OpenAI-compatible model API."
+          "default": "https://api.deepseek.com",
+          "description": "Base URL for DeepSeek API requests."
         },
         "aria.api.model": {
           "type": "string",

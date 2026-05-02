@@ -5,7 +5,7 @@ import type {
   ChatCompletionToolMessageParam,
   ChatCompletionMessageToolCall,
 } from 'openai/resources/chat/completions'
-import { streamChat } from '../../model/ModelApiClient.js'
+import { streamChat } from '../../model/index.js'
 import {
   builtinToolDefinitions,
   executeBuiltinTool,

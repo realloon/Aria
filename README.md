@@ -30,7 +30,7 @@ Before sending messages:
 
 1. Configure `aria.api.apiKey` in VS Code Settings.
 2. Configure `aria.api.model` in VS Code Settings.
-3. Configure `aria.api.baseUrl` in VS Code Settings if you are not using the default OpenAI-compatible endpoint.
+3. Configure `aria.api.baseUrl` in VS Code Settings if you are not using the default DeepSeek endpoint.
 
 ## Current Contribution
 
