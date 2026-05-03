@@ -3,23 +3,10 @@ import type {
   ChatCompletionAssistantMessageParam,
   ChatCompletionMessageParam,
   ChatCompletionMessageToolCall,
-  ChatCompletionReasoningEffort,
   ChatCompletionToolMessageParam,
 } from 'openai/resources/chat/completions'
-import { Model } from './abstract.js'
-import type { ModelChatEvent, ModelChatInput } from './abstract.js'
-
-export type OpenAICompatibleReasoningEffort = ChatCompletionReasoningEffort
-
-export interface OpenAICompatibleOptions {
-  apiKey: string
-  baseURL: string
-  systemPrompt?: string
-}
-
-export interface OpenAICompatibleChatInput extends ModelChatInput {
-  reasoningEffort?: OpenAICompatibleReasoningEffort
-}
+import { createModelClient, modelProviders } from './providers.js'
+import type { ModelChatEvent, RunModelChatInput } from './types.js'
 
 interface ToolCallAccumulator {
   index: number
@@ -28,63 +15,65 @@ interface ToolCallAccumulator {
   arguments: string
 }
 
-export class OpenAICompatible extends Model<OpenAICompatibleChatInput> {
-  constructor(options: OpenAICompatibleOptions) {
-    super(options.baseURL, options.apiKey, options.systemPrompt)
-  }
-
-  override async *chat(
-    input: OpenAICompatibleChatInput,
-  ): AsyncGenerator<ModelChatEvent> {
-    yield* runOpenAICompatibleChat(this.client, this.messages, input, {
-      systemPrompt: this.systemPrompt,
-    })
-  }
+type AssistantMessageWithReasoning = ChatCompletionAssistantMessageParam & {
+  reasoning_content?: string
 }
 
-export async function* runOpenAICompatibleChat(
-  client: OpenAI,
-  messages: ChatCompletionMessageParam[],
-  input: OpenAICompatibleChatInput,
-  options: { systemPrompt?: string } = {},
-): AsyncGenerator<ModelChatEvent> {
-  const requestMessages = [...messages]
+interface ChatRoundResult {
+  assistantMessage: ChatCompletionAssistantMessageParam
+  toolCalls: ChatCompletionMessageToolCall[]
+}
+
+export async function runModelChat(
+  input: RunModelChatInput,
+): Promise<ChatCompletionMessageParam[]> {
+  const client = createModelClient(input)
+  const provider = modelProviders[input.providerId]
+  const messages = [...input.messages]
+  const requestMessages: ChatCompletionMessageParam[] = input.systemPrompt
+    ? [{ role: 'system', content: input.systemPrompt }, ...messages]
+    : [...messages]
   const tools = input.tools ?? []
 
-  if (options.systemPrompt) {
-    requestMessages.unshift({ role: 'system', content: options.systemPrompt })
-  }
-
-  if (input.input) {
-    messages.push({ role: 'user', content: input.input })
-    requestMessages.push({ role: 'user', content: input.input })
-  }
-
   if (tools.length > 0 && !input.executeTool) {
-    throw new Error('Model.chat requires executeTool when tools are provided.')
-  }
-
-  if (tools.length > 0 && input.maxToolRounds === undefined) {
     throw new Error(
-      'Model.chat requires maxToolRounds when tools are provided.',
+      'runModelChat requires executeTool when tools are provided.',
     )
   }
 
-  const maxRounds = tools.length > 0 ? input.maxToolRounds! : 1
+  if (input.userText) {
+    const userMessage: ChatCompletionMessageParam = {
+      role: 'user',
+      content: input.userText,
+    }
+
+    messages.push(userMessage)
+    requestMessages.push(userMessage)
+  }
+
+  const maxRounds = tools.length > 0 ? (input.maxToolRounds ?? 5) : 1
+
+  if (maxRounds < 1) {
+    throw new Error('runModelChat requires at least one tool round.')
+  }
 
   for (let round = 0; round < maxRounds; round += 1) {
-    const result = yield* runChatRound(client, requestMessages, input)
+    const result = await runChatRound(
+      client,
+      requestMessages,
+      input,
+      provider.reasoningMode === 'deepseek',
+    )
 
     if (result.toolCalls.length === 0) {
       messages.push(result.assistantMessage)
-      return
+      return messages
     }
 
-    yield { type: 'toolCalls', toolCalls: result.toolCalls }
-
-    if (!input.executeTool) {
-      throw new Error('Model.chat requires executeTool to continue tool calls.')
-    }
+    await emitEvent(input, {
+      type: 'toolCalls',
+      toolCalls: result.toolCalls,
+    })
 
     if (round + 1 >= maxRounds) {
       throw new Error('Stopped after too many tool call rounds.')
@@ -99,19 +88,16 @@ export async function* runOpenAICompatibleChat(
     requestMessages.push(result.assistantMessage, ...toolMessages)
     messages.push(result.assistantMessage, ...toolMessages)
   }
+
+  return messages
 }
 
-async function* runChatRound(
+async function runChatRound(
   client: OpenAI,
   requestMessages: ChatCompletionMessageParam[],
-  input: OpenAICompatibleChatInput,
-): AsyncGenerator<
-  ModelChatEvent,
-  {
-    assistantMessage: ChatCompletionAssistantMessageParam
-    toolCalls: ChatCompletionMessageToolCall[]
-  }
-> {
+  input: RunModelChatInput,
+  includeReasoning: boolean,
+): Promise<ChatRoundResult> {
   const tools = input.tools ?? []
   const stream = await client.chat.completions.create(
     {
@@ -121,7 +107,7 @@ async function* runChatRound(
       parallel_tool_calls: tools.length > 0 ? true : undefined,
       stream: true,
       reasoning_effort: input.reasoningEffort,
-    },
+    } as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
     {
       signal: input.signal,
       maxRetries: 0,
@@ -129,14 +115,23 @@ async function* runChatRound(
   )
   const toolCalls = new Map<number, ToolCallAccumulator>()
   let responseText = ''
+  let reasoningText = ''
 
   for await (const chunk of stream) {
     const delta = chunk.choices[0]?.delta
     const content = delta?.content
+    const reasoning = includeReasoning
+      ? (delta as { reasoning_content?: string } | undefined)?.reasoning_content
+      : undefined
+
+    if (reasoning) {
+      reasoningText += reasoning
+      await emitEvent(input, { type: 'reasoning', text: reasoning })
+    }
 
     if (content) {
       responseText += content
-      yield { type: 'content', text: content }
+      await emitEvent(input, { type: 'content', text: content })
     }
 
     accumulateToolCalls(toolCalls, delta?.tool_calls ?? [])
@@ -149,10 +144,18 @@ async function* runChatRound(
   return {
     assistantMessage: toAssistantMessage({
       content: responseText,
+      reasoningContent: reasoningText,
       toolCalls: completedToolCalls,
     }),
     toolCalls: completedToolCalls,
   }
+}
+
+async function emitEvent(
+  input: RunModelChatInput,
+  event: ModelChatEvent,
+): Promise<void> {
+  await input.onEvent?.(event)
 }
 
 function accumulateToolCalls(
@@ -187,11 +190,16 @@ function accumulateToolCalls(
 
 function toAssistantMessage(options: {
   content: string
+  reasoningContent: string
   toolCalls: ChatCompletionMessageToolCall[]
 }): ChatCompletionAssistantMessageParam {
-  const message: ChatCompletionAssistantMessageParam = {
+  const message: AssistantMessageWithReasoning = {
     role: 'assistant',
     content: options.content || null,
+  }
+
+  if (options.reasoningContent) {
+    message.reasoning_content = options.reasoningContent
   }
 
   if (options.toolCalls.length > 0) {

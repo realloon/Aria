@@ -5,9 +5,9 @@ import type {
   ChatCompletionMessageToolCall,
 } from 'openai/resources/chat/completions'
 import {
-  createProviderModel,
   modelProviders,
   parseModelProviderId,
+  runModelChat,
 } from '../../model/index.js'
 import type {
   ChatReasoningEffort,
@@ -318,44 +318,44 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       typeof systemMessage.content === 'string'
         ? systemMessage.content
         : JSON.stringify(systemMessage.content)
-    const model =
-      config.providerId === 'openai-compatible'
-        ? createProviderModel(config.providerId, config.apiKey, systemPrompt, {
-            baseURL: config.baseURL,
-          })
-        : createProviderModel(config.providerId, config.apiKey, systemPrompt)
-    model.messages.push(...this.getActiveThread().messages)
 
-    for await (const delta of model.chat({
+    return await runModelChat({
+      providerId: config.providerId,
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
       model: config.chatModel,
-      input: userText,
+      systemPrompt,
+      messages: this.getActiveThread().messages,
+      userText,
       tools,
       reasoningEffort: config.reasoningEffort,
       executeTool: toolContext
         ? toolCall => this.executeToolCall(toolCall, toolContext)
         : undefined,
       maxToolRounds: tools.length > 0 ? 5 : undefined,
-    })) {
-      if (delta.type === 'content') {
-        onDelta(delta)
-        await this.postMessage({
-          type: 'assistantMessageDelta',
-          text: delta.text,
-        })
-        continue
-      }
+      onEvent: async delta => {
+        if (delta.type === 'toolCalls') {
+          return
+        }
 
-      if (delta.type === 'reasoning') {
-        onDelta(delta)
-        await this.postMessage({
-          type: 'assistantReasoningDelta',
-          text: delta.text,
-        })
-        continue
-      }
-    }
+        if (delta.type === 'content') {
+          onDelta(delta)
+          await this.postMessage({
+            type: 'assistantMessageDelta',
+            text: delta.text,
+          })
+          return
+        }
 
-    return model.messages
+        if (delta.type === 'reasoning') {
+          onDelta(delta)
+          await this.postMessage({
+            type: 'assistantReasoningDelta',
+            text: delta.text,
+          })
+        }
+      },
+    })
   }
 
   private loadThreadState(): ThreadState {
@@ -771,7 +771,6 @@ function getNonce(): string {
 
 function parseReasoningEffort(value: string | undefined): ChatReasoningEffort {
   switch (value) {
-    case 'none':
     case 'minimal':
     case 'low':
     case 'medium':

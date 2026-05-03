@@ -1,22 +1,11 @@
-import { deepSeekBaseURL, ProviderModel } from './deepseek.js'
-import { OpenAICompatible } from './openai-compatible.js'
-
-export type ModelProviderId = 'openai' | 'openai-compatible' | 'deepseek'
-
-export interface ModelProvider {
-  id: ModelProviderId
-  label: string
-  baseURL: string
-  chatModels: string[]
-  fimModel?: string
-  reasoningMode: 'openai' | 'deepseek'
-}
+import OpenAI from 'openai'
+import type { ModelProvider, ModelProviderId } from './types.js'
 
 export const modelProviders = {
   deepseek: {
     id: 'deepseek',
     label: 'DeepSeek',
-    baseURL: deepSeekBaseURL,
+    baseURL: 'https://api.deepseek.com/beta',
     chatModels: ['deepseek-v4-pro', 'deepseek-v4-flash'],
     fimModel: 'deepseek-v4-flash',
     reasoningMode: 'deepseek',
@@ -54,23 +43,24 @@ export function parseModelProviderId(
   }
 }
 
-export function createProviderModel(
-  providerId: ModelProviderId,
-  apiKey: string,
-  systemPrompt?: string,
-  options: { baseURL?: string } = {},
-): ProviderModel | OpenAICompatible {
-  if (providerId === 'openai-compatible') {
-    if (!options.baseURL) {
+export function createModelClient(options: {
+  providerId: ModelProviderId
+  apiKey: string
+  baseURL?: string
+}): OpenAI {
+  const provider = modelProviders[options.providerId]
+  const baseURL =
+    options.providerId === 'openai-compatible'
+      ? options.baseURL
+      : provider.baseURL
+
+  if (!baseURL) {
+    if (options.providerId === 'openai-compatible') {
       throw new Error('Configure aria.api.baseURLs.openai-compatible.')
     }
 
-    return new OpenAICompatible({
-      apiKey,
-      baseURL: options.baseURL,
-      systemPrompt,
-    })
+    throw new Error(`Provider ${options.providerId} does not have a base URL.`)
   }
 
-  return new ProviderModel(modelProviders[providerId], apiKey, systemPrompt)
+  return new OpenAI({ baseURL, apiKey: options.apiKey })
 }

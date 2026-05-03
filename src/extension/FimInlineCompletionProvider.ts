@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import {
-  createProviderModel,
+  completeFim,
   modelProviders,
   parseModelProviderId,
 } from '../model/index.js'
@@ -61,10 +61,9 @@ export class FimInlineCompletionProvider
     })
 
     try {
-      const completion = await createProviderModel(
-        config.providerId,
-        config.apiKey,
-      ).complete({
+      const completion = await completeFim({
+        providerId: config.providerId,
+        apiKey: config.apiKey,
         model: config.fimModel,
         prefix,
         suffix: suffix || undefined,

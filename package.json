@@ -75,7 +75,6 @@
         "aria.api.reasoningEffort": {
           "type": "string",
           "enum": [
-            "none",
             "minimal",
             "low",
             "medium",
