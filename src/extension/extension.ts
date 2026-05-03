@@ -4,6 +4,7 @@ import {
   FimInlineCompletionProvider,
   getFimSettings,
 } from './FimInlineCompletionProvider.js'
+import { registerGenerateCommitMessageCommand } from './gitCommitMessage.js'
 import { AriaChatViewProvider } from './webview/AriaChatViewProvider.js'
 
 export function activate(context: vscode.ExtensionContext) {
@@ -40,6 +41,8 @@ export function activate(context: vscode.ExtensionContext) {
       await showFimContext()
     },
   )
+  const generateCommitMessageCommand =
+    registerGenerateCommitMessageCommand(context)
   const configurationChangeRegistration =
     vscode.workspace.onDidChangeConfiguration(event => {
       if (event.affectsConfiguration('aria.api.provider')) {
@@ -68,6 +71,7 @@ export function activate(context: vscode.ExtensionContext) {
     deleteThreadCommand,
     showSystemPromptCommand,
     showFimContextCommand,
+    generateCommitMessageCommand,
     configurationChangeRegistration,
     chatViewRegistration,
     fimInlineCompletionRegistration,

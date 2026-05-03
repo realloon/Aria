@@ -2,8 +2,12 @@
   "name": "aria-vscode-extension",
   "displayName": "Aria",
   "description": "Programming agent extension scaffold for Aria.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "Vortex",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/realloon/Aria.git"
+  },
   "type": "module",
   "main": "./dist/extension.js",
   "packageManager": "pnpm@10.33.2",
@@ -126,6 +130,11 @@
       {
         "command": "aria.showFimContext",
         "title": "Aria: Show FIM Context"
+      },
+      {
+        "command": "aria.generateCommitMessage",
+        "title": "Aria: Generate Commit Message",
+        "icon": "$(sparkle)"
       }
     ],
     "keybindings": [
@@ -152,6 +161,13 @@
           "command": "aria.showHistory",
           "when": "view == aria.chatView",
           "group": "navigation@3"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "aria.generateCommitMessage",
+          "when": "scmProvider == git",
+          "group": "navigation@1"
         }
       ]
     },
