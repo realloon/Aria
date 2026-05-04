@@ -38,6 +38,29 @@ Before sending messages:
 Supported providers are `deepseek`, `openai`, and `openai-compatible`. Aria
 selects the default chat and FIM model for the chosen provider.
 
+### MCP
+
+Aria reads MCP servers from `./.agents/mcp.json` in the workspace root:
+
+```json
+{
+  "mcpServers": {
+    "server_name": {
+      "command": "node",
+      "args": ["./server.js"],
+      "env": {
+        "TOKEN": "value"
+      }
+    }
+  }
+}
+```
+
+Use `url` instead of `command` for Streamable HTTP servers.
+
+Tool names are exposed to the model as `source__tool_name`. Built-in tools use
+`buildin` as the source, for example `buildin__read_file`.
+
 ## Current Contribution
 
 - Command: `Aria: Show FIM Context`

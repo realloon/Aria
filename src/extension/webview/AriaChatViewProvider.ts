@@ -9,6 +9,7 @@ import {
   parseModelProviderId,
   runModelChat,
 } from '../../model/index.js'
+import { McpToolManager } from '../../mcp/McpToolManager.js'
 import type {
   ChatReasoningEffort,
   ModelProvider,
@@ -51,12 +52,17 @@ interface PendingUserInput {
   resolve(value: string): void
 }
 
+type ToolContext = BuiltinToolContext & {
+  workspaceFolder: vscode.WorkspaceFolder
+}
+
 export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'aria.chatView'
   private static readonly threadStateKey = 'aria.threadState'
   private static readonly chatModelKey = 'aria.chatModel'
 
   private readonly context: vscode.ExtensionContext
+  private readonly mcpToolManager = new McpToolManager()
   private readonly threadState: ThreadState
   private busy = false
   private pendingUserInput?: PendingUserInput
@@ -79,6 +85,10 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     })
 
     await vscode.window.showTextDocument(document, { preview: false })
+  }
+
+  async dispose(): Promise<void> {
+    await this.mcpToolManager.dispose()
   }
 
   async createNewThread(): Promise<void> {
@@ -312,7 +322,14 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     onDelta: (delta: { type: 'content' | 'reasoning'; text: string }) => void,
   ): Promise<ChatCompletionMessageParam[]> {
     const toolContext = this.getToolContext()
-    const tools = toolContext ? builtinToolDefinitions : []
+    const mcpToolDefinitions = toolContext
+      ? await this.mcpToolManager.getToolDefinitions(
+          toolContext.workspaceFolder,
+        )
+      : []
+    const tools = toolContext
+      ? [...builtinToolDefinitions, ...mcpToolDefinitions]
+      : []
     const systemMessage = await this.getSystemMessage()
     const systemPrompt =
       typeof systemMessage.content === 'string'
@@ -552,13 +569,20 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
 
   private async executeToolCall(
     toolCall: ChatCompletionMessageToolCall,
-    toolContext: BuiltinToolContext,
+    toolContext: ToolContext,
   ): Promise<string> {
     if (toolCall.type !== 'function') {
       return JSON.stringify({
         ok: false,
         error: `Unsupported tool call type: ${toolCall.type}`,
       })
+    }
+
+    if (this.mcpToolManager.hasTool(toolCall.function.name)) {
+      return await this.mcpToolManager.executeTool(
+        toolCall.function.name,
+        toolCall.function.arguments,
+      )
     }
 
     return await executeBuiltinTool(
@@ -693,10 +717,11 @@ ${identityContent}
     return vscode.workspace.workspaceFolders?.[0]
   }
 
-  private getToolContext(): BuiltinToolContext | undefined {
+  private getToolContext(): ToolContext | undefined {
     const workspaceFolder = this.getCurrentWorkspaceFolder()
     return workspaceFolder
       ? {
+          workspaceFolder,
           cwd: workspaceFolder.uri.fsPath,
           askUser: (question, options) => this.askUser(question, options),
         }

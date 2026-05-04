@@ -23,6 +23,8 @@
     "build": "pnpm exec vsce package --no-dependencies"
   },
   "dependencies": {
+    "@cfworker/json-schema": "^4.1.1",
+    "@modelcontextprotocol/client": "2.0.0-alpha.2",
     "markdown-it": "^14.1.1",
     "openai": "^6.35.0"
   },

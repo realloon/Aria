@@ -6,6 +6,8 @@ import { runCommandTool } from './runCommandTool.js'
 import { parseArgs } from './validation.js'
 import { writeFileTool } from './writeFileTool.js'
 
+const builtinToolSource = 'buildin'
+
 export const builtinTools: BuiltinTool[] = [
   readFileTool,
   writeFileTool,
@@ -15,10 +17,19 @@ export const builtinTools: BuiltinTool[] = [
 ]
 
 const toolsByName = new Map(
-  builtinTools.map(tool => [tool.definition.function.name, tool]),
+  builtinTools.map(tool => [
+    toNamespacedToolName(tool.definition.function.name),
+    tool,
+  ]),
 )
 
-export const builtinToolDefinitions = builtinTools.map(tool => tool.definition)
+export const builtinToolDefinitions = builtinTools.map(tool => ({
+  ...tool.definition,
+  function: {
+    ...tool.definition.function,
+    name: toNamespacedToolName(tool.definition.function.name),
+  },
+}))
 
 export async function executeBuiltinTool(
   name: string,
@@ -41,4 +52,8 @@ export async function executeBuiltinTool(
       error: error instanceof Error ? error.message : 'Tool execution failed.',
     })
   }
+}
+
+function toNamespacedToolName(toolName: string): string {
+  return `${builtinToolSource}__${toolName}`
 }
