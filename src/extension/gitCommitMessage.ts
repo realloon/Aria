@@ -1,5 +1,6 @@
-import * as path from 'node:path'
 import * as vscode from 'vscode'
+import { basename } from 'node:path'
+import { relative, sep } from 'node:path'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import {
   modelProviders,
@@ -94,7 +95,7 @@ async function handleGenerateCommitMessage(
 async function generateCommitMessage(
   context: vscode.ExtensionContext,
 ): Promise<void> {
-  await vscode.window.withProgress(
+  const generatedMode = await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
       title: 'Aria: generating commit message',
@@ -108,7 +109,7 @@ async function generateCommitMessage(
         await vscode.window.showWarningMessage(
           'No Git changes found for commit message generation.',
         )
-        return
+        return undefined
       }
 
       const settings = getChatModelSettings(context)
@@ -116,11 +117,15 @@ async function generateCommitMessage(
 
       repository.inputBox.value = commitMessage
       await vscode.commands.executeCommand('workbench.view.scm')
-      await vscode.window.showInformationMessage(
-        `Generated commit message from ${changeContext.mode} changes.`,
-      )
+      return changeContext.mode
     },
   )
+
+  if (generatedMode) {
+    void vscode.window.showInformationMessage(
+      `Generated commit message from ${generatedMode} changes.`,
+    )
+  }
 }
 
 async function getCurrentRepository(): Promise<GitRepository> {
@@ -151,7 +156,7 @@ async function getCurrentRepository(): Promise<GitRepository> {
 
   const selected = await vscode.window.showQuickPick(
     api.repositories.map(repository => ({
-      label: path.basename(repository.rootUri.fsPath),
+      label: basename(repository.rootUri.fsPath),
       description: repository.rootUri.fsPath,
       repository,
     })),
@@ -447,10 +452,7 @@ function truncateDiff(diff: string): string {
 }
 
 function toRepositoryPath(repository: GitRepository, uri: vscode.Uri): string {
-  return path
-    .relative(repository.rootUri.fsPath, uri.fsPath)
-    .split(path.sep)
-    .join('/')
+  return relative(repository.rootUri.fsPath, uri.fsPath).split(sep).join('/')
 }
 
 function isBinary(bytes: Uint8Array): boolean {

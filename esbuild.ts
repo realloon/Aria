@@ -1,9 +1,9 @@
-import esbuild from 'esbuild'
+import { build, context, type BuildOptions } from 'esbuild'
 
 const production = process.argv.includes('--production')
 const watch = process.argv.includes('--watch')
 
-const config: import('esbuild').BuildOptions = {
+const config: BuildOptions = {
   bundle: true,
   entryPoints: ['src/extension/extension.ts'],
   external: ['vscode'],
@@ -19,13 +19,13 @@ const config: import('esbuild').BuildOptions = {
 
 async function main() {
   if (watch) {
-    const context = await esbuild.context(config)
-    await context.watch()
+    const buildContext = await context(config)
+    await buildContext.watch()
     console.log('Watching extension sources...')
     return
   }
 
-  await esbuild.build(config)
+  await build(config)
 }
 
 main().catch((error: unknown) => {

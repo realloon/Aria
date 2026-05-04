@@ -1,4 +1,4 @@
-import OpenAI from 'openai'
+import { OpenAI } from 'openai'
 import type { ModelProvider, ModelProviderId } from './types.js'
 
 export const modelProviders = {
