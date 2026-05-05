@@ -155,16 +155,21 @@ function selectModel(model: string): void {
 .composer {
   display: flex;
   flex-direction: column;
-  padding: 8px;
-  border: 1px solid var(--vscode-focusBorder);
+  border: 2px solid var(--vscode-input-border, transparent);
   border-radius: 6px;
   margin-bottom: 6px;
+  transition: 0.2s;
+
+  &:focus-within {
+    border-color: var(--vscode-focusBorder);
+  }
 }
 
 .composer textarea {
   color: var(--vscode-input-foreground);
   background: transparent;
-  padding: 0;
+  padding-inline: 8px;
+  padding-block-start: 8px;
   border: transparent;
   outline: none;
   resize: none;
@@ -173,6 +178,8 @@ function selectModel(model: string): void {
 .composer footer {
   display: flex;
   align-items: center;
+  padding-inline: 8px 4px;
+  padding-block-end: 4px;
 }
 
 .model-picker {
