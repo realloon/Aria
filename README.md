@@ -4,7 +4,68 @@ Aria is a programming agent extension for VS Code.
 
 ## Feature
 
+### Agent Chat
 
+Chat with Aria from the Activity Bar.
+
+Aria can read and edit files, apply patches, run commands, and ask for input
+when a task needs a decision.
+
+### Auto Completion
+
+Inline FIM completion for the active editor.
+
+Trigger VS Code inline suggestions with `Cmd+Alt+K`, or use the editor's normal
+inline suggestion flow.
+
+### Generate Commit
+
+Generate a commit message from staged changes.
+
+If nothing is staged, Aria uses working tree changes and a small summary of
+untracked files.
+
+## Configuration
+
+Aria supports DeepSeek, OpenAI, and OpenAI-compatible providers.
+
+Set these in VS Code settings:
+
+- `aria.api.provider`
+- `aria.api.apiKeys.deepseek`
+- `aria.api.apiKeys.openai`
+- `aria.api.apiKeys.openai-compatible`
+- `aria.api.baseURLs.openai-compatible`
+- `aria.api.reasoningEffort`
+- `aria.fim.enabled`
+- `aria.fim.maxTokens`
+
+## Connect
+
+### AGENTS.md
+
+Aria reads [AGENTS.md](https://agents.md) from `AGENTS.md` in the workspace root.
+
+### MCP
+
+Aria reads [MCP](https://modelcontextprotocol.io) servers from `.agents/mcp.json` in the workspace root:
+
+```json
+{
+  "mcpServers": {
+    "server_name": {
+      "command": "node",
+      "args": ["server.js"]
+    }
+  }
+}
+```
+
+Use `url` instead of `command` for Streamable HTTP servers.
+
+### Agent Skills
+
+Not supported yet.
 
 ## Development
 
@@ -20,54 +81,8 @@ Build the extension:
 pnpm run compile
 ```
 
-Run it in VS Code:
+Package the extension:
 
-1. Open this folder in VS Code.
-2. Press `F5` and choose `Run Extension`.
-3. In the Extension Development Host, open the Aria activity bar item.
-
-## Agent Chat
-
-The Aria activity bar item opens the Agent Chat panel.
-
-Before sending messages:
-
-1. Configure `aria.api.provider` in VS Code Settings.
-2. Configure the API key for that provider in VS Code Settings:
-   - `aria.api.apiKeys.deepseek`
-   - `aria.api.apiKeys.openai`
-   - `aria.api.apiKeys.openai-compatible`
-3. Configure `aria.api.baseURLs.openai-compatible` when using `openai-compatible`.
-
-Supported providers are `deepseek`, `openai`, and `openai-compatible`. Aria
-selects the default chat and FIM model for the chosen provider.
-
-### MCP
-
-Aria reads MCP servers from `./.agents/mcp.json` in the workspace root:
-
-```json
-{
-  "mcpServers": {
-    "server_name": {
-      "command": "node",
-      "args": ["./server.js"],
-      "env": {
-        "TOKEN": "value"
-      }
-    }
-  }
-}
+```sh
+pnpm run build
 ```
-
-Use `url` instead of `command` for Streamable HTTP servers.
-
-Tool names are exposed to the model as `source__tool_name`. Built-in tools use
-`buildin` as the source, for example `buildin__read_file`.
-
-## Current Contribution
-
-- Command: `Aria: Show FIM Context`
-- Keybinding: `Cmd+Option+K` triggers FIM inline completion.
-- View: `Aria > Chat`
-- Inline completion: FIM completion uses the selected provider when it supports a default FIM model. When available, Aria adds compact VS Code symbol context from the current document and workspace symbol providers.
