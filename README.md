@@ -1,6 +1,10 @@
 # Aria
 
-Aria is a programming agent extension scaffold for VS Code.
+Aria is a programming agent extension for VS Code.
+
+## Feature
+
+
 
 ## Development
 
