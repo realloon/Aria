@@ -53,13 +53,7 @@ export async function runModelChat(
     requestMessages.push(userMessage)
   }
 
-  const maxRounds = tools.length > 0 ? (input.maxToolRounds ?? 5) : 1
-
-  if (maxRounds < 1) {
-    throw new Error('runModelChat requires at least one tool round.')
-  }
-
-  for (let round = 0; round < maxRounds; round += 1) {
+  while (true) {
     const result = await runChatRound(
       client,
       requestMessages,
@@ -77,10 +71,6 @@ export async function runModelChat(
       toolCalls: result.toolCalls,
     })
 
-    if (round + 1 >= maxRounds) {
-      throw new Error('Stopped after too many tool call rounds.')
-    }
-
     const toolMessages = await Promise.all(
       result.toolCalls.map(async toolCall =>
         toToolMessage(toolCall, await input.executeTool!(toolCall)),
@@ -90,8 +80,6 @@ export async function runModelChat(
     requestMessages.push(result.assistantMessage, ...toolMessages)
     messages.push(result.assistantMessage, ...toolMessages)
   }
-
-  return messages
 }
 
 async function runChatRound(

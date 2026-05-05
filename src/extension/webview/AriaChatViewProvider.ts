@@ -349,7 +349,6 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       executeTool: toolContext
         ? toolCall => this.executeToolCall(toolCall, toolContext)
         : undefined,
-      maxToolRounds: tools.length > 0 ? 5 : undefined,
       onEvent: async delta => {
         if (delta.type === 'toolCalls') {
           return

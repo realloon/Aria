@@ -37,7 +37,6 @@ export interface RunModelChatInput {
   reasoningEffort: ChatReasoningEffort
   tools?: ChatCompletionTool[]
   executeTool?(toolCall: ChatCompletionMessageToolCall): Promise<string>
-  maxToolRounds?: number
   onEvent?(event: ModelChatEvent): void | Promise<void>
   signal?: AbortSignal
 }
