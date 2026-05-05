@@ -24,7 +24,6 @@ export interface FimContext {
 export interface FimSettings {
   enabled: boolean
   maxTokens: number
-  useWorkspaceSymbols: boolean
 }
 
 export class FimInlineCompletionProvider
@@ -46,11 +45,7 @@ export class FimInlineCompletionProvider
       return undefined
     }
 
-    const { prefix, suffix } = await buildFimContext(
-      document,
-      position,
-      config.useWorkspaceSymbols,
-    )
+    const { prefix, suffix } = await buildFimContext(document, position)
 
     if (!prefix && !suffix) {
       return undefined
@@ -100,7 +95,6 @@ export class FimInlineCompletionProvider
         providerId: ModelProviderId
         fimModel: string
         maxTokens: number
-        useWorkspaceSymbols: boolean
       }
     | undefined {
     const apiConfig = vscode.workspace.getConfiguration('aria.api')
@@ -133,7 +127,6 @@ export class FimInlineCompletionProvider
       providerId,
       fimModel,
       maxTokens: settings.maxTokens,
-      useWorkspaceSymbols: settings.useWorkspaceSymbols,
     }
   }
 
@@ -171,14 +164,12 @@ export function getFimSettings(): FimSettings {
   return {
     enabled: fimConfig.get<boolean>('enabled') === true,
     maxTokens: clampMaxTokens(fimConfig.get<number>('maxTokens')),
-    useWorkspaceSymbols: fimConfig.get<boolean>('useWorkspaceSymbols') === true,
   }
 }
 
 export async function buildFimContext(
   document: vscode.TextDocument,
   position: vscode.Position,
-  useWorkspaceSymbols: boolean,
 ): Promise<FimContext> {
   const documentSymbols = await getFlatDocumentSymbols(document)
   const currentStructure = getCurrentStructure(documentSymbols, position)
@@ -186,7 +177,6 @@ export async function buildFimContext(
   const symbolContext = await getSymbolContext(
     document,
     position,
-    useWorkspaceSymbols,
     documentSymbols,
     currentStructure,
   )
@@ -200,7 +190,6 @@ export async function buildFimContext(
 async function getSymbolContext(
   document: vscode.TextDocument,
   position: vscode.Position,
-  useWorkspaceSymbols: boolean,
   documentSymbols: FlatSymbol[],
   currentStructure: FlatSymbol | undefined,
 ): Promise<string> {
@@ -216,9 +205,7 @@ async function getSymbolContext(
       currentStructure
         ? getRelatedStructureSummaries(document, currentStructure)
         : Promise.resolve([]),
-      useWorkspaceSymbols
-        ? getWorkspaceSymbolSummaries(document, position)
-        : Promise.resolve([]),
+      getWorkspaceSymbolSummaries(document, position),
     ])
   const currentFilePath = vscode.workspace.asRelativePath(document.uri, false)
   const lines = [

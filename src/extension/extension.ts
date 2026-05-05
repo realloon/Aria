@@ -97,11 +97,7 @@ async function showFimContext(): Promise<void> {
 
   const settings = getFimSettings()
   const position = editor.selection.active
-  const context = await buildFimContext(
-    editor.document,
-    position,
-    settings.useWorkspaceSymbols,
-  )
+  const context = await buildFimContext(editor.document, position)
   const document = await vscode.workspace.openTextDocument({
     content: JSON.stringify(
       {

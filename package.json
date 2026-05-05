@@ -18,7 +18,6 @@
     "vscode:prepublish": "pnpm run compile",
     "compile": "tsc --noEmit && vite build --config src/webview/vite.config.ts && node esbuild.ts",
     "build:webview": "vite build --config src/webview/vite.config.ts",
-    "watch": "node esbuild.ts --watch",
     "check-types": "tsc --noEmit",
     "build": "pnpm exec vsce package --no-dependencies"
   },
@@ -81,7 +80,6 @@
         "aria.api.reasoningEffort": {
           "type": "string",
           "enum": [
-            "minimal",
             "low",
             "medium",
             "high",
@@ -98,14 +96,9 @@
         "aria.fim.maxTokens": {
           "type": "number",
           "default": 128,
-          "minimum": 1,
+          "minimum": 64,
           "maximum": 4096,
           "description": "Maximum tokens generated for one FIM completion."
-        },
-        "aria.fim.useWorkspaceSymbols": {
-          "type": "boolean",
-          "default": true,
-          "description": "Include compact VS Code workspace symbol matches in FIM prompts when available."
         }
       }
     },
