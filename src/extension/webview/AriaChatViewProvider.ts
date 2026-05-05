@@ -26,19 +26,12 @@ import {
   builtinToolDefinitions,
   executeBuiltinTool,
 } from '../../tools/index.js'
+import type {
+  ChatMessage,
+  ExtensionMessage,
+  WebviewMessage,
+} from '../../types/chat.js'
 import type { BuiltinToolContext } from '../../types/tools.js'
-
-type WebviewMessage =
-  | { type: 'ready' }
-  | { type: 'sendMessage'; text: string }
-  | { type: 'selectChatModel'; model: string }
-
-interface UiChatMessage {
-  id: string
-  role: 'user' | 'assistant'
-  reasoning?: string
-  text: string
-}
 
 interface Thread {
   id: string
@@ -46,7 +39,7 @@ interface Thread {
   createdAt: number
   updatedAt: number
   messages: ChatCompletionMessageParam[]
-  uiMessages: UiChatMessage[]
+  uiMessages: ChatMessage[]
 }
 
 interface ThreadState {
@@ -270,7 +263,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     this.busy = true
 
     try {
-      let assistantMessage: UiChatMessage | undefined
+      let assistantMessage: ChatMessage | undefined
       const messages = await this.runAssistantTurn(
         {
           apiKey,
@@ -514,7 +507,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     return thread
   }
 
-  private addUiMessage(message: Omit<UiChatMessage, 'id'>): UiChatMessage {
+  private addUiMessage(message: Omit<ChatMessage, 'id'>): ChatMessage {
     const thread = this.getActiveThread()
     const uiMessage = {
       id: randomUUID(),
@@ -598,7 +591,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     )
   }
 
-  private async postMessage(message: unknown): Promise<void> {
+  private async postMessage(message: ExtensionMessage): Promise<void> {
     await this.webviewView?.webview.postMessage(message)
   }
 

@@ -5,6 +5,11 @@ export interface ChatMessage {
   text: string
 }
 
+export type WebviewMessage =
+  | { type: 'ready' }
+  | { type: 'sendMessage'; text: string }
+  | { type: 'selectChatModel'; model: string }
+
 export type ExtensionMessage =
   | {
       type: 'threadState'

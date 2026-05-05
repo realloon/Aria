@@ -1,5 +1,5 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import type { ChatMessage, ExtensionMessage } from '../types/chat.js'
+import type { ChatMessage, ExtensionMessage } from '../../../types/chat.js'
 
 const vscode = acquireVsCodeApi()
 

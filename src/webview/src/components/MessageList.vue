@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatMessage } from '../types/chat.js'
+import type { ChatMessage } from '../../../types/chat.js'
 import AssistantMessage from './messages/AssistantMessage.vue'
 import UserMessage from './messages/UserMessage.vue'
 
