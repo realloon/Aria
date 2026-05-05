@@ -1,17 +1,16 @@
 import type {
   ChatCompletionMessageParam,
   ChatCompletionMessageToolCall,
+  ChatCompletionReasoningEffort,
   ChatCompletionTool,
 } from 'openai/resources/chat/completions'
 
 export type ModelProviderId = 'openai' | 'openai-compatible' | 'deepseek'
 
-export type ChatReasoningEffort =
-  | 'minimal'
-  | 'low'
-  | 'medium'
-  | 'high'
-  | 'xhigh'
+export type ChatReasoningEffort = Exclude<
+  ChatCompletionReasoningEffort,
+  'none' | null
+>
 
 export interface ModelProvider {
   id: ModelProviderId

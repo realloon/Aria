@@ -1,6 +1,8 @@
 import { OpenAI } from 'openai'
 import type {
   ChatCompletionAssistantMessageParam,
+  ChatCompletionChunk,
+  ChatCompletionCreateParamsStreaming,
   ChatCompletionMessageParam,
   ChatCompletionMessageToolCall,
   ChatCompletionToolMessageParam,
@@ -99,20 +101,18 @@ async function runChatRound(
   includeReasoning: boolean,
 ): Promise<ChatRoundResult> {
   const tools = input.tools ?? []
-  const stream = await client.chat.completions.create(
-    {
-      model: input.model,
-      messages: requestMessages,
-      tools: tools.length > 0 ? tools : undefined,
-      parallel_tool_calls: tools.length > 0 ? true : undefined,
-      stream: true,
-      reasoning_effort: input.reasoningEffort,
-    } as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
-    {
-      signal: input.signal,
-      maxRetries: 0,
-    },
-  )
+  const request: ChatCompletionCreateParamsStreaming = {
+    model: input.model,
+    messages: requestMessages,
+    tools: tools.length > 0 ? tools : undefined,
+    parallel_tool_calls: tools.length > 0 ? true : undefined,
+    stream: true,
+    reasoning_effort: input.reasoningEffort,
+  }
+  const stream = await client.chat.completions.create(request, {
+    signal: input.signal,
+    maxRetries: 0,
+  })
   const toolCalls = new Map<number, ToolCallAccumulator>()
   let responseText = ''
   let reasoningText = ''
@@ -160,11 +160,7 @@ async function emitEvent(
 
 function accumulateToolCalls(
   toolCalls: Map<number, ToolCallAccumulator>,
-  deltas: Array<{
-    index: number
-    id?: string
-    function?: { name?: string; arguments?: string }
-  }>,
+  deltas: ChatCompletionChunk.Choice.Delta.ToolCall[],
 ): void {
   for (const toolCall of deltas) {
     const current = toolCalls.get(toolCall.index) ?? {

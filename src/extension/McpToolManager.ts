@@ -1,6 +1,8 @@
 import type {
   CallToolResult,
   Client,
+  StdioServerParameters,
+  StreamableHTTPClientTransportOptions,
   Transport,
 } from '@modelcontextprotocol/client'
 import type { ChatCompletionFunctionTool } from 'openai/resources/chat/completions'
@@ -14,15 +16,17 @@ interface McpServerConfigBase {
 }
 
 interface McpStdioServerConfig extends McpServerConfigBase {
-  command: string
-  args?: string[]
-  cwd?: string
-  env?: Record<string, string>
+  command: StdioServerParameters['command']
+  args?: StdioServerParameters['args']
+  cwd?: StdioServerParameters['cwd']
+  env?: StdioServerParameters['env']
 }
 
 interface McpHttpServerConfig extends McpServerConfigBase {
   url: string
-  headers?: Record<string, string>
+  headers?: NonNullable<
+    StreamableHTTPClientTransportOptions['requestInit']
+  >['headers']
 }
 
 type McpServerConfig = McpStdioServerConfig | McpHttpServerConfig

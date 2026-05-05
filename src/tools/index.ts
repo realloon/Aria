@@ -8,13 +8,13 @@ import { writeFileTool } from './writeFileTool.js'
 
 const builtinToolSource = 'buildin'
 
-export const builtinTools: BuiltinTool[] = [
+export const builtinTools = [
   readFileTool,
   writeFileTool,
   patchFileTool,
   runCommandTool,
   askUserTool,
-]
+] satisfies BuiltinTool[]
 
 const toolsByName = new Map(
   builtinTools.map(tool => [
