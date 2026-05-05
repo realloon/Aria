@@ -2,18 +2,15 @@ import * as vscode from 'vscode'
 import { basename } from 'node:path'
 import { relative, sep } from 'node:path'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
+import { parseModelProviderId, runModelChat } from '../model/index.js'
+import type { ChatReasoningEffort, ModelProviderId } from '../types/model.js'
 import {
-  modelProviders,
-  parseModelProviderId,
-  runModelChat,
-} from '../model/index.js'
-import type {
-  ChatReasoningEffort,
-  ModelProvider,
-  ModelProviderId,
-} from '../model/index.js'
+  getProviderApiKey,
+  getProviderBaseURL,
+  getSelectedChatModel,
+  parseReasoningEffort,
+} from '../utils/modelSettings.js'
 
-const chatModelKey = 'aria.chatModel'
 const maxDiffCharacters = 60_000
 const maxUntrackedFiles = 10
 const maxUntrackedFileCharacters = 4_000
@@ -345,20 +342,6 @@ function getChatModelSettings(
   }
 }
 
-function getSelectedChatModel(
-  context: vscode.ExtensionContext,
-  providerId: ModelProviderId,
-): string {
-  const provider: ModelProvider = modelProviders[providerId]
-  const selectedModels =
-    context.workspaceState.get<Record<string, string>>(chatModelKey) ?? {}
-  const selectedModel = selectedModels[providerId]
-
-  return selectedModel && provider.chatModels.includes(selectedModel)
-    ? selectedModel
-    : provider.chatModels[0]!
-}
-
 function buildCommitSystemPrompt(): string {
   return `You generate Git commit messages.
 
@@ -410,37 +393,6 @@ function normalizeCommitMessage(value: string): string {
       .trim()
       .slice(0, 200) ?? ''
   )
-}
-
-function parseReasoningEffort(value: string | undefined): ChatReasoningEffort {
-  switch (value) {
-    case 'minimal':
-    case 'low':
-    case 'medium':
-    case 'high':
-    case 'xhigh':
-      return value
-    default:
-      throw new Error('Configure aria.api.reasoningEffort.')
-  }
-}
-
-function getProviderApiKey(
-  config: vscode.WorkspaceConfiguration,
-  providerId: ModelProviderId,
-): string {
-  return config.get<string>(`apiKeys.${providerId}`)?.trim() ?? ''
-}
-
-function getProviderBaseURL(
-  config: vscode.WorkspaceConfiguration,
-  providerId: ModelProviderId,
-): string | undefined {
-  if (providerId !== 'openai-compatible') {
-    return undefined
-  }
-
-  return config.get<string>(`baseURLs.${providerId}`)?.trim() ?? ''
 }
 
 function truncateDiff(diff: string): string {

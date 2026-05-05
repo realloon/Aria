@@ -4,7 +4,8 @@ import {
   modelProviders,
   parseModelProviderId,
 } from '../model/index.js'
-import type { ModelProvider, ModelProviderId } from '../model/index.js'
+import type { ModelProvider, ModelProviderId } from '../types/model.js'
+import { getProviderApiKey } from '../utils/modelSettings.js'
 
 const maxPrefixLength = 16_000
 const maxSuffixLength = 8_000
@@ -881,11 +882,4 @@ function clampMaxTokens(value: number | undefined): number {
   }
 
   return Math.min(Math.max(Math.trunc(value), 1), 4096)
-}
-
-function getProviderApiKey(
-  config: vscode.WorkspaceConfiguration,
-  providerId: ModelProviderId,
-): string {
-  return config.get<string>(`apiKeys.${providerId}`)?.trim() ?? ''
 }

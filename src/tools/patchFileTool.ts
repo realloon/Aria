@@ -1,4 +1,4 @@
-import type { BuiltinTool } from './types.js'
+import type { BuiltinTool } from '../types/tools.js'
 import { readFile, writeFile } from 'node:fs/promises'
 import { getOptionalBoolean, getString, resolvePath } from './validation.js'
 

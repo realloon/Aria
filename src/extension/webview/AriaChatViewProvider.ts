@@ -9,17 +9,24 @@ import {
   parseModelProviderId,
   runModelChat,
 } from '../../model/index.js'
-import { McpToolManager } from '../../mcp/McpToolManager.js'
+import { McpToolManager } from '../McpToolManager.js'
 import type {
   ChatReasoningEffort,
   ModelProvider,
   ModelProviderId,
-} from '../../model/index.js'
+} from '../../types/model.js'
+import {
+  chatModelStateKey,
+  getProviderApiKey,
+  getProviderBaseURL,
+  getSelectedChatModel,
+  parseReasoningEffort,
+} from '../../utils/modelSettings.js'
 import {
   builtinToolDefinitions,
   executeBuiltinTool,
 } from '../../tools/index.js'
-import type { BuiltinToolContext } from '../../tools/types.js'
+import type { BuiltinToolContext } from '../../types/tools.js'
 
 type WebviewMessage =
   | { type: 'ready' }
@@ -59,7 +66,6 @@ type ToolContext = BuiltinToolContext & {
 export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'aria.chatView'
   private static readonly threadStateKey = 'aria.threadState'
-  private static readonly chatModelKey = 'aria.chatModel'
 
   private readonly context: vscode.ExtensionContext
   private readonly mcpToolManager = new McpToolManager()
@@ -242,13 +248,14 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       return
     }
 
-    const chatModel = this.getSelectedChatModel(providerId)
+    const chatModel = getSelectedChatModel(this.context, providerId)
 
     let reasoningEffort: ChatReasoningEffort
 
     try {
       reasoningEffort = parseReasoningEffort(
         config.get<string>('reasoningEffort')?.trim(),
+        'Configure aria.api.reasoningEffort before sending a message.',
       )
     } catch (error) {
       await this.postError(
@@ -376,10 +383,9 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private loadThreadState(): ThreadState {
-    const saved =
-      this.context.workspaceState.get<Partial<ThreadState>>(
-        AriaChatViewProvider.threadStateKey,
-      )
+    const saved = this.context.workspaceState.get<Partial<ThreadState>>(
+      AriaChatViewProvider.threadStateKey,
+    )
 
     if (!saved || !Array.isArray(saved.threads) || saved.threads.length === 0) {
       const thread = this.createEmptyThread()
@@ -558,7 +564,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     const provider: ModelProvider = modelProviders[providerId]
-    const selectedModel = this.getSelectedChatModel(providerId)
+    const selectedModel = getSelectedChatModel(this.context, providerId)
 
     await this.postMessage({
       type: 'chatModelState',
@@ -611,19 +617,6 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private getSelectedChatModel(providerId: ModelProviderId): string {
-    const provider: ModelProvider = modelProviders[providerId]
-    const selectedModels =
-      this.context.workspaceState.get<Record<string, string>>(
-        AriaChatViewProvider.chatModelKey,
-      ) ?? {}
-    const selectedModel = selectedModels[providerId]
-
-    return selectedModel && provider.chatModels.includes(selectedModel)
-      ? selectedModel
-      : provider.chatModels[0]!
-  }
-
   private async selectChatModel(model: string): Promise<void> {
     if (this.isThreadLocked()) {
       await this.postChatModelState()
@@ -646,10 +639,10 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
 
     const selectedModels =
       this.context.workspaceState.get<Record<string, string>>(
-        AriaChatViewProvider.chatModelKey,
+        chatModelStateKey,
       ) ?? {}
 
-    await this.context.workspaceState.update(AriaChatViewProvider.chatModelKey, {
+    await this.context.workspaceState.update(chatModelStateKey, {
       ...selectedModels,
       [providerId]: model,
     })
@@ -792,39 +785,6 @@ function getNonce(): string {
   }
 
   return text
-}
-
-function parseReasoningEffort(value: string | undefined): ChatReasoningEffort {
-  switch (value) {
-    case 'minimal':
-    case 'low':
-    case 'medium':
-    case 'high':
-    case 'xhigh':
-      return value
-    default:
-      throw new Error(
-        'Configure aria.api.reasoningEffort before sending a message.',
-      )
-  }
-}
-
-function getProviderApiKey(
-  config: vscode.WorkspaceConfiguration,
-  providerId: ModelProviderId,
-): string {
-  return config.get<string>(`apiKeys.${providerId}`)?.trim() ?? ''
-}
-
-function getProviderBaseURL(
-  config: vscode.WorkspaceConfiguration,
-  providerId: ModelProviderId,
-): string | undefined {
-  if (providerId !== 'openai-compatible') {
-    return undefined
-  }
-
-  return config.get<string>(`baseURLs.${providerId}`)?.trim() ?? ''
 }
 
 function normalizeThreadTitle(value: unknown): string {

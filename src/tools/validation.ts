@@ -1,4 +1,4 @@
-import type { JsonObject } from './types.js'
+import type { JsonObject } from '../types/tools.js'
 import { isAbsolute, resolve } from 'node:path'
 
 export function parseArgs(argsJson: string): JsonObject {

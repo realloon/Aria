@@ -1,5 +1,5 @@
 import { askUserTool } from './askUserTool.js'
-import type { BuiltinTool, BuiltinToolContext } from './types.js'
+import type { BuiltinTool, BuiltinToolContext } from '../types/tools.js'
 import { patchFileTool } from './patchFileTool.js'
 import { readFileTool } from './readFileTool.js'
 import { runCommandTool } from './runCommandTool.js'

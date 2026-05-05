@@ -8,4 +8,4 @@ export type {
   ModelProvider,
   ModelProviderId,
   RunModelChatInput,
-} from './types.js'
+} from '../types/model.js'

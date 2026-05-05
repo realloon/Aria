@@ -1,13 +1,13 @@
-import {
+import type {
+  CallToolResult,
   Client,
-  getDefaultEnvironment,
-  StdioClientTransport,
-  StreamableHTTPClientTransport,
+  Transport,
 } from '@modelcontextprotocol/client'
-import type { CallToolResult, Transport } from '@modelcontextprotocol/client'
 import type { ChatCompletionFunctionTool } from 'openai/resources/chat/completions'
 import * as vscode from 'vscode'
 import { parseArgs } from '../tools/validation.js'
+
+type McpClientModule = typeof import('@modelcontextprotocol/client')
 
 interface McpServerConfigBase {
   disabled: boolean
@@ -154,11 +154,12 @@ export class McpToolManager {
       return cached
     }
 
-    const client = new Client({
+    const mcpClient = await loadMcpClient()
+    const client = new mcpClient.Client({
       name: 'aria',
       version: '0.4.0',
     })
-    const transport = createTransport(config)
+    const transport = createTransport(config, mcpClient)
     await client.connect(transport)
 
     const connection = { client, transport }
@@ -268,15 +269,18 @@ function parseMcpServerConfig(
   throw new Error(`MCP server ${name} must define command or url.`)
 }
 
-function createTransport(config: McpServerConfig): Transport {
+function createTransport(
+  config: McpServerConfig,
+  mcpClient: McpClientModule,
+): Transport {
   if ('command' in config) {
-    const transport = new StdioClientTransport({
+    const transport = new mcpClient.StdioClientTransport({
       command: config.command,
       args: config.args,
       cwd: config.cwd,
       env: config.env
         ? {
-            ...getDefaultEnvironment(),
+            ...mcpClient.getDefaultEnvironment(),
             ...config.env,
           }
         : undefined,
@@ -288,13 +292,17 @@ function createTransport(config: McpServerConfig): Transport {
     return transport
   }
 
-  return new StreamableHTTPClientTransport(new URL(config.url), {
+  return new mcpClient.StreamableHTTPClientTransport(new URL(config.url), {
     requestInit: config.headers
       ? {
           headers: config.headers,
         }
       : undefined,
   })
+}
+
+async function loadMcpClient(): Promise<McpClientModule> {
+  return await import('@modelcontextprotocol/client')
 }
 
 function toOpenAiToolName(serverName: string, toolName: string): string {

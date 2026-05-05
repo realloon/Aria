@@ -1,5 +1,5 @@
 import { OpenAI } from 'openai'
-import type { ModelProvider, ModelProviderId } from './types.js'
+import type { ModelProvider, ModelProviderId } from '../types/model.js'
 
 export const modelProviders = {
   deepseek: {

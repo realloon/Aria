@@ -1,4 +1,4 @@
-import type { BuiltinTool } from './types.js'
+import type { BuiltinTool } from '../types/tools.js'
 import { dirname } from 'node:path'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { getString, resolvePath } from './validation.js'

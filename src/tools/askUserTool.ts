@@ -1,4 +1,4 @@
-import type { BuiltinTool } from './types.js'
+import type { BuiltinTool } from '../types/tools.js'
 import { getOptionalStringArray, getString } from './validation.js'
 
 export const askUserTool: BuiltinTool = {

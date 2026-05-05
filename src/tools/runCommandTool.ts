@@ -1,4 +1,4 @@
-import type { BuiltinTool } from './types.js'
+import type { BuiltinTool } from '../types/tools.js'
 import { exec } from 'node:child_process'
 import { getOptionalNumber, getString, resolvePath } from './validation.js'
 

@@ -4,6 +4,9 @@ const production = process.argv.includes('--production')
 const watch = process.argv.includes('--watch')
 
 const config: BuildOptions = {
+  banner: {
+    js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
+  },
   bundle: true,
   entryPoints: ['src/extension/extension.ts'],
   external: ['vscode'],

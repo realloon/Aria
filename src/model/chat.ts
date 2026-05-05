@@ -6,7 +6,7 @@ import type {
   ChatCompletionToolMessageParam,
 } from 'openai/resources/chat/completions'
 import { createModelClient, modelProviders } from './providers.js'
-import type { ModelChatEvent, RunModelChatInput } from './types.js'
+import type { ModelChatEvent, RunModelChatInput } from '../types/model.js'
 
 interface ToolCallAccumulator {
   index: number
