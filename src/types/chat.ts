@@ -1,7 +1,20 @@
+export interface ToolActivity {
+  id: string
+  name: string
+  state: 'running' | 'done'
+}
+
+export interface ThoughtBlock {
+  id: string
+  reasoning: string
+  state: 'running' | 'done'
+  tools: ToolActivity[]
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
-  reasoning?: string
+  thoughts?: ThoughtBlock[]
   text: string
 }
 
@@ -23,6 +36,8 @@ export type ExtensionMessage =
   | { type: 'assistantMessageStart' }
   | { type: 'assistantReasoningDelta'; text: string }
   | { type: 'assistantMessageDelta'; text: string }
+  | { type: 'assistantToolCallsStarted'; tools: ToolActivity[] }
+  | { type: 'assistantToolCallDone'; id: string }
   | { type: 'askUser'; question: string; options: string[] }
   | { type: 'error'; message: string }
   | { type: 'loading'; loading: boolean }

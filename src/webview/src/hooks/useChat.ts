@@ -1,5 +1,9 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import type { ChatMessage, ExtensionMessage } from '../../../types/chat.js'
+import type {
+  ChatMessage,
+  ExtensionMessage,
+  ThoughtBlock,
+} from '../../../types/chat.js'
 
 const vscode = acquireVsCodeApi()
 
@@ -75,15 +79,16 @@ export function useChat() {
         messages.value.push({
           id: createLocalId(),
           role: 'assistant',
-          reasoning: '',
+          thoughts: [],
           text: '',
         })
         void scrollToEnd()
         return
       case 'assistantReasoningDelta': {
         const lastMessage = ensureAssistantMessage()
+        const thought = ensureCurrentThought(lastMessage)
 
-        lastMessage.reasoning = `${lastMessage.reasoning ?? ''}${message.text}`
+        thought.reasoning += message.text
 
         void scrollToEnd()
         return
@@ -91,7 +96,31 @@ export function useChat() {
       case 'assistantMessageDelta': {
         const lastMessage = ensureAssistantMessage()
 
+        finishCurrentThought(lastMessage)
         lastMessage.text += message.text
+
+        void scrollToEnd()
+        return
+      }
+      case 'assistantToolCallsStarted': {
+        const lastMessage = ensureAssistantMessage()
+        const thought = ensureCurrentThought(lastMessage)
+
+        thought.tools = [...thought.tools, ...message.tools]
+        thought.state = 'done'
+
+        void scrollToEnd()
+        return
+      }
+      case 'assistantToolCallDone': {
+        const lastMessage = ensureAssistantMessage()
+        const tool = lastMessage.thoughts
+          ?.flatMap(thought => thought.tools)
+          .find(item => item.id === message.id)
+
+        if (tool) {
+          tool.state = 'done'
+        }
 
         void scrollToEnd()
         return
@@ -139,7 +168,7 @@ export function useChat() {
     const assistantMessage: ChatMessage = {
       id: createLocalId(),
       role: 'assistant',
-      reasoning: '',
+      thoughts: [],
       text: '',
     }
 
@@ -159,6 +188,34 @@ export function useChat() {
     chooseOption,
     selectChatModel,
     sendMessage,
+  }
+}
+
+function ensureCurrentThought(message: ChatMessage): ThoughtBlock {
+  message.thoughts ??= []
+
+  const lastThought = message.thoughts.at(-1)
+
+  if (lastThought && lastThought.tools.length === 0) {
+    return lastThought
+  }
+
+  const thought = {
+    id: createLocalId(),
+    reasoning: '',
+    state: 'running' as const,
+    tools: [],
+  }
+
+  message.thoughts.push(thought)
+  return thought
+}
+
+function finishCurrentThought(message: ChatMessage): void {
+  const lastThought = message.thoughts?.at(-1)
+
+  if (lastThought) {
+    lastThought.state = 'done'
   }
 }
 

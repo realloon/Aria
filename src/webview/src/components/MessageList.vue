@@ -19,7 +19,7 @@ const scrollHost = defineModel<HTMLElement | null>('scrollHost', {
       v-for="message in messages"
       :key="message.id"
       :is="message.role === 'user' ? UserMessage : AssistantMessage"
-      :reasoning="message.reasoning"
+      :thoughts="message.thoughts"
       :text="message.text"
     />
   </section>

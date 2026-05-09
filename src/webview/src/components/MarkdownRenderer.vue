@@ -19,6 +19,9 @@ const renderedSource = computed(() => markdown.render(props.source))
 }
 
 .markdown:deep(code) {
+  font-family: ui-monospace, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   background-color: var(--vscode-editor-background);
 }
 

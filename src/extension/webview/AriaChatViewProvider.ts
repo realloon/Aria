@@ -29,6 +29,8 @@ import {
 import type {
   ChatMessage,
   ExtensionMessage,
+  ThoughtBlock,
+  ToolActivity,
   WebviewMessage,
 } from '../../types/chat.js'
 import type { BuiltinToolContext } from '../../types/tools.js'
@@ -264,6 +266,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
 
     try {
       let assistantMessage: ChatMessage | undefined
+      let currentThought: ThoughtBlock | undefined
       const messages = await this.runAssistantTurn(
         {
           apiKey,
@@ -276,16 +279,41 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
         delta => {
           assistantMessage ??= this.addUiMessage({
             role: 'assistant',
-            reasoning: '',
+            thoughts: [],
             text: '',
           })
 
           if (delta.type === 'reasoning') {
-            assistantMessage.reasoning = `${assistantMessage.reasoning ?? ''}${delta.text}`
+            currentThought = ensureCurrentThought(assistantMessage)
+            currentThought.reasoning += delta.text
             return
           }
 
+          currentThought = finishCurrentThought(currentThought)
           assistantMessage.text += delta.text
+        },
+        tools => {
+          assistantMessage ??= this.addUiMessage({
+            role: 'assistant',
+            thoughts: [],
+            text: '',
+          })
+          currentThought = ensureCurrentThought(assistantMessage)
+          currentThought.tools = [...currentThought.tools, ...tools]
+          currentThought = finishCurrentThought(currentThought)
+        },
+        toolCallId => {
+          if (!assistantMessage?.thoughts) {
+            return
+          }
+
+          const tool = assistantMessage.thoughts
+            .flatMap(thought => thought.tools)
+            .find(item => item.id === toolCallId)
+
+          if (tool) {
+            tool.state = 'done'
+          }
         },
       )
       thread.messages = messages
@@ -320,6 +348,8 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     },
     userText: string,
     onDelta: (delta: { type: 'content' | 'reasoning'; text: string }) => void,
+    onToolCallsStarted: (tools: ToolActivity[]) => void,
+    onToolCallDone: (toolCallId: string) => void,
   ): Promise<ChatCompletionMessageParam[]> {
     const toolContext = this.getToolContext()
     const mcpToolDefinitions = toolContext
@@ -347,10 +377,21 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       tools,
       reasoningEffort: config.reasoningEffort,
       executeTool: toolContext
-        ? toolCall => this.executeToolCall(toolCall, toolContext)
+        ? toolCall =>
+            this.executeToolCallWithStatus(
+              toolCall,
+              toolContext,
+              onToolCallDone,
+            )
         : undefined,
       onEvent: async delta => {
         if (delta.type === 'toolCalls') {
+          const tools = delta.toolCalls.map(toToolActivity)
+          onToolCallsStarted(tools)
+          await this.postMessage({
+            type: 'assistantToolCallsStarted',
+            tools,
+          })
           return
         }
 
@@ -590,6 +631,22 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     )
   }
 
+  private async executeToolCallWithStatus(
+    toolCall: ChatCompletionMessageToolCall,
+    toolContext: ToolContext,
+    onDone: (toolCallId: string) => void,
+  ): Promise<string> {
+    try {
+      return await this.executeToolCall(toolCall, toolContext)
+    } finally {
+      onDone(toolCall.id)
+      await this.postMessage({
+        type: 'assistantToolCallDone',
+        id: toolCall.id,
+      })
+    }
+  }
+
   private async postMessage(message: ExtensionMessage): Promise<void> {
     await this.webviewView?.webview.postMessage(message)
   }
@@ -788,4 +845,51 @@ function normalizeThreadTitle(value: unknown): string {
   }
 
   return firstLine.length > 40 ? `${firstLine.slice(0, 37)}...` : firstLine
+}
+
+function toToolActivity(
+  toolCall: ChatCompletionMessageToolCall,
+): ToolActivity {
+  return {
+    id: toolCall.id,
+    name:
+      toolCall.type === 'function'
+        ? formatToolName(toolCall.function.name)
+        : toolCall.type,
+    state: 'running',
+  }
+}
+
+function formatToolName(name: string): string {
+  return name.replace(/^buildin__/, '').replace(/__/g, ' /').replace(/_/g, ' ')
+}
+
+function ensureCurrentThought(message: ChatMessage): ThoughtBlock {
+  message.thoughts ??= []
+
+  const lastThought = message.thoughts.at(-1)
+
+  if (lastThought && lastThought.tools.length === 0) {
+    return lastThought
+  }
+
+  const thought = {
+    id: randomUUID(),
+    reasoning: '',
+    state: 'running' as const,
+    tools: [],
+  }
+
+  message.thoughts.push(thought)
+  return thought
+}
+
+function finishCurrentThought(
+  thought: ThoughtBlock | undefined,
+): undefined {
+  if (thought) {
+    thought.state = 'done'
+  }
+
+  return undefined
 }
