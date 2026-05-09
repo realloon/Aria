@@ -16,7 +16,9 @@ export function useChat() {
   const scrollHost = ref<HTMLElement | null>(null)
   const userOptions = ref<string[]>([])
 
-  const canSend = computed(() => input.value.trim().length > 0 && !loading.value)
+  const canSend = computed(
+    () => input.value.trim().length > 0 && !loading.value,
+  )
 
   function sendMessage(): void {
     const text = input.value.trim()
@@ -107,21 +109,22 @@ export function useChat() {
         const thought = ensureCurrentThought(lastMessage)
 
         thought.tools = [...thought.tools, ...message.tools]
-        thought.state = 'done'
 
         void scrollToEnd()
         return
       }
       case 'assistantToolCallDone': {
         const lastMessage = ensureAssistantMessage()
-        const tool = lastMessage.thoughts
-          ?.flatMap(thought => thought.tools)
-          .find(item => item.id === message.id)
+        const thought = lastMessage.thoughts?.find(thought =>
+          thought.tools.some(tool => tool.id === message.id),
+        )
+        const tool = thought?.tools.find(item => item.id === message.id)
 
         if (tool) {
           tool.state = 'done'
         }
 
+        finishThoughtIfToolsDone(thought)
         void scrollToEnd()
         return
       }
@@ -205,6 +208,7 @@ function ensureCurrentThought(message: ChatMessage): ThoughtBlock {
     reasoning: '',
     state: 'running' as const,
     tools: [],
+    startedAt: Date.now(),
   }
 
   message.thoughts.push(thought)
@@ -215,8 +219,22 @@ function finishCurrentThought(message: ChatMessage): void {
   const lastThought = message.thoughts?.at(-1)
 
   if (lastThought) {
-    lastThought.state = 'done'
+    finishThought(lastThought)
   }
+}
+
+function finishThoughtIfToolsDone(thought: ThoughtBlock | undefined): void {
+  if (
+    thought?.tools.length &&
+    thought.tools.every(tool => tool.state === 'done')
+  ) {
+    finishThought(thought)
+  }
+}
+
+function finishThought(thought: ThoughtBlock): void {
+  thought.state = 'done'
+  thought.finishedAt ??= Date.now()
 }
 
 function createLocalId(): string {

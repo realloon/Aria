@@ -300,20 +300,22 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
           })
           currentThought = ensureCurrentThought(assistantMessage)
           currentThought.tools = [...currentThought.tools, ...tools]
-          currentThought = finishCurrentThought(currentThought)
         },
         toolCallId => {
           if (!assistantMessage?.thoughts) {
             return
           }
 
-          const tool = assistantMessage.thoughts
-            .flatMap(thought => thought.tools)
-            .find(item => item.id === toolCallId)
+          const thought = assistantMessage.thoughts.find(thought =>
+            thought.tools.some(tool => tool.id === toolCallId),
+          )
+          const tool = thought?.tools.find(item => item.id === toolCallId)
 
           if (tool) {
             tool.state = 'done'
           }
+
+          currentThought = finishThoughtIfToolsDone(thought, currentThought)
         },
       )
       thread.messages = messages
@@ -847,9 +849,7 @@ function normalizeThreadTitle(value: unknown): string {
   return firstLine.length > 40 ? `${firstLine.slice(0, 37)}...` : firstLine
 }
 
-function toToolActivity(
-  toolCall: ChatCompletionMessageToolCall,
-): ToolActivity {
+function toToolActivity(toolCall: ChatCompletionMessageToolCall): ToolActivity {
   return {
     id: toolCall.id,
     name:
@@ -861,7 +861,10 @@ function toToolActivity(
 }
 
 function formatToolName(name: string): string {
-  return name.replace(/^buildin__/, '').replace(/__/g, ' /').replace(/_/g, ' ')
+  return name
+    .replace(/^buildin__/, '')
+    .replace(/__/g, ' /')
+    .replace(/_/g, ' ')
 }
 
 function ensureCurrentThought(message: ChatMessage): ThoughtBlock {
@@ -878,18 +881,38 @@ function ensureCurrentThought(message: ChatMessage): ThoughtBlock {
     reasoning: '',
     state: 'running' as const,
     tools: [],
+    startedAt: Date.now(),
   }
 
   message.thoughts.push(thought)
   return thought
 }
 
-function finishCurrentThought(
-  thought: ThoughtBlock | undefined,
-): undefined {
+function finishCurrentThought(thought: ThoughtBlock | undefined): undefined {
   if (thought) {
-    thought.state = 'done'
+    finishThought(thought)
   }
 
   return undefined
+}
+
+function finishThoughtIfToolsDone(
+  thought: ThoughtBlock | undefined,
+  currentThought: ThoughtBlock | undefined,
+): ThoughtBlock | undefined {
+  if (!thought?.tools.length) {
+    return currentThought
+  }
+
+  if (thought.tools.some(tool => tool.state !== 'done')) {
+    return currentThought
+  }
+
+  finishThought(thought)
+  return thought.id === currentThought?.id ? undefined : currentThought
+}
+
+function finishThought(thought: ThoughtBlock): void {
+  thought.state = 'done'
+  thought.finishedAt ??= Date.now()
 }

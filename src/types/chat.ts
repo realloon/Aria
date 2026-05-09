@@ -9,6 +9,8 @@ export interface ThoughtBlock {
   reasoning: string
   state: 'running' | 'done'
   tools: ToolActivity[]
+  startedAt: number
+  finishedAt?: number
 }
 
 export interface ChatMessage {

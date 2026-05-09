@@ -6,31 +6,61 @@ defineProps<{
   thoughts?: ThoughtBlock[]
   text: string
 }>()
+
+function formatWorkSummary(thought: ThoughtBlock): string {
+  const verb = thought.state === 'running' ? 'Working' : 'Worked'
+
+  return `${verb} for ${formatDuration(thought)}`
+}
+
+function formatDuration(thought: ThoughtBlock): string {
+  const durationMs = (thought.finishedAt ?? Date.now()) - thought.startedAt
+
+  if (!Number.isFinite(durationMs) || durationMs < 0) {
+    return '0s'
+  }
+
+  const totalSeconds = Math.floor(durationMs / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+
+  if (minutes === 0) {
+    return `${seconds}s`
+  }
+
+  return `${minutes}m ${seconds}s`
+}
 </script>
 
 <template>
   <section>
-    <div
-      v-for="thought in thoughts"
-      :key="thought.id"
-      class="thought"
-    >
-      <details v-if="thought.reasoning" class="reasoning">
-        <summary>{{ thought.state === 'running' ? 'Thinking' : 'Thought' }}</summary>
-        <MarkdownRenderer :source="thought.reasoning" />
+    <div v-for="thought in thoughts" :key="thought.id" class="thought">
+      <details v-if="thought.tools.length" class="work">
+        <summary>{{ formatWorkSummary(thought) }}</summary>
+        <MarkdownRenderer
+          v-if="thought.reasoning"
+          :source="thought.reasoning"
+        />
+
+        <ul class="tools">
+          <li
+            v-for="tool in thought.tools"
+            :key="tool.id"
+            class="tool"
+            :class="`tool-${tool.state}`"
+          >
+            <span class="tool-status" aria-hidden="true" />
+            <span class="tool-name">{{ tool.name }}</span>
+          </li>
+        </ul>
       </details>
 
-      <ul v-if="thought.tools.length" class="tools">
-        <li
-          v-for="tool in thought.tools"
-          :key="tool.id"
-          class="tool"
-          :class="`tool-${tool.state}`"
-        >
-          <span class="tool-status" aria-hidden="true" />
-          <span class="tool-name">{{ tool.name }}</span>
-        </li>
-      </ul>
+      <details v-else-if="thought.reasoning" class="reasoning">
+        <summary>
+          {{ thought.state === 'running' ? 'Thinking' : 'Thought' }}
+        </summary>
+        <MarkdownRenderer :source="thought.reasoning" />
+      </details>
     </div>
 
     <MarkdownRenderer :source="text" />
@@ -42,7 +72,8 @@ defineProps<{
   margin-bottom: 6px;
 }
 
-.reasoning {
+.reasoning,
+.work {
   color: var(--vscode-descriptionForeground);
   margin-bottom: 4px;
 
@@ -59,6 +90,10 @@ defineProps<{
   & div {
     margin-top: 4px;
   }
+}
+
+.work .tools {
+  margin-top: 6px;
 }
 
 .tools {
