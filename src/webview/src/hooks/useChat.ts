@@ -1,8 +1,8 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import type {
+  ChatTraceItem,
   ChatMessage,
   ExtensionMessage,
-  ThoughtBlock,
 } from '../../../types/chat.js'
 
 const vscode = acquireVsCodeApi()
@@ -81,16 +81,16 @@ export function useChat() {
         messages.value.push({
           id: createLocalId(),
           role: 'assistant',
-          thoughts: [],
+          trace: [],
           text: '',
         })
         void scrollToEnd()
         return
       case 'assistantReasoningDelta': {
         const lastMessage = ensureAssistantMessage()
-        const thought = ensureCurrentThought(lastMessage)
+        const traceItem = ensureCurrentTrace(lastMessage, 'reasoning')
 
-        thought.reasoning += message.text
+        traceItem.text = `${traceItem.text ?? ''}${message.text}`
 
         void scrollToEnd()
         return
@@ -98,7 +98,6 @@ export function useChat() {
       case 'assistantMessageDelta': {
         const lastMessage = ensureAssistantMessage()
 
-        finishCurrentThought(lastMessage)
         lastMessage.text += message.text
 
         void scrollToEnd()
@@ -106,25 +105,26 @@ export function useChat() {
       }
       case 'assistantToolCallsStarted': {
         const lastMessage = ensureAssistantMessage()
-        const thought = ensureCurrentThought(lastMessage)
+        const traceItem = ensureCurrentTrace(lastMessage, 'tools')
 
-        thought.tools = [...thought.tools, ...message.tools]
+        traceItem.tools = [...(traceItem.tools ?? []), ...message.tools]
 
         void scrollToEnd()
         return
       }
       case 'assistantToolCallDone': {
         const lastMessage = ensureAssistantMessage()
-        const thought = lastMessage.thoughts?.find(thought =>
-          thought.tools.some(tool => tool.id === message.id),
+        const traceItem = lastMessage.trace?.find(
+          item =>
+            item.type === 'tools' &&
+            item.tools?.some(tool => tool.id === message.id),
         )
-        const tool = thought?.tools.find(item => item.id === message.id)
+        const tool = traceItem?.tools?.find(item => item.id === message.id)
 
         if (tool) {
           tool.state = 'done'
         }
 
-        finishThoughtIfToolsDone(thought)
         void scrollToEnd()
         return
       }
@@ -171,7 +171,7 @@ export function useChat() {
     const assistantMessage: ChatMessage = {
       id: createLocalId(),
       role: 'assistant',
-      thoughts: [],
+      trace: [],
       text: '',
     }
 
@@ -194,47 +194,31 @@ export function useChat() {
   }
 }
 
-function ensureCurrentThought(message: ChatMessage): ThoughtBlock {
-  message.thoughts ??= []
+function ensureCurrentTrace(
+  message: ChatMessage,
+  type: ChatTraceItem['type'],
+): ChatTraceItem {
+  message.trace ??= []
+  message.traceStartedAt ??= Date.now()
 
-  const lastThought = message.thoughts.at(-1)
+  const lastTrace = message.trace.at(-1)
 
-  if (lastThought && lastThought.tools.length === 0) {
-    return lastThought
+  if (lastTrace?.type === type) {
+    return lastTrace
   }
 
-  const thought = {
+  const traceItem: ChatTraceItem = {
     id: createLocalId(),
-    reasoning: '',
-    state: 'running' as const,
-    tools: [],
-    startedAt: Date.now(),
+    type,
+  }
+  if (type === 'reasoning') {
+    traceItem.text = ''
+  } else {
+    traceItem.tools = []
   }
 
-  message.thoughts.push(thought)
-  return thought
-}
-
-function finishCurrentThought(message: ChatMessage): void {
-  const lastThought = message.thoughts?.at(-1)
-
-  if (lastThought) {
-    finishThought(lastThought)
-  }
-}
-
-function finishThoughtIfToolsDone(thought: ThoughtBlock | undefined): void {
-  if (
-    thought?.tools.length &&
-    thought.tools.every(tool => tool.state === 'done')
-  ) {
-    finishThought(thought)
-  }
-}
-
-function finishThought(thought: ThoughtBlock): void {
-  thought.state = 'done'
-  thought.finishedAt ??= Date.now()
+  message.trace.push(traceItem)
+  return traceItem
 }
 
 function createLocalId(): string {

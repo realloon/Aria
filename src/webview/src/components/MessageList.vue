@@ -19,7 +19,9 @@ const scrollHost = defineModel<HTMLElement | null>('scrollHost', {
       v-for="message in messages"
       :key="message.id"
       :is="message.role === 'user' ? UserMessage : AssistantMessage"
-      :thoughts="message.thoughts"
+      :trace="message.trace"
+      :trace-started-at="message.traceStartedAt"
+      :trace-finished-at="message.traceFinishedAt"
       :text="message.text"
     />
   </section>

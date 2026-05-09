@@ -22,7 +22,9 @@ body {
   margin: 0;
 }
 
-p {
+p,
+ul,
+ol {
   margin-block: unset;
 }
 

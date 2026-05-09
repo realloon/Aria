@@ -1,8 +1,8 @@
 import * as vscode from 'vscode'
 import { randomUUID } from 'node:crypto'
 import type {
+  ChatCompletionMessageFunctionToolCall,
   ChatCompletionMessageParam,
-  ChatCompletionMessageToolCall,
 } from 'openai/resources/chat/completions'
 import {
   modelProviders,
@@ -27,9 +27,9 @@ import {
   executeBuiltinTool,
 } from '../../tools/index.js'
 import type {
+  ChatTraceItem,
   ChatMessage,
   ExtensionMessage,
-  ThoughtBlock,
   ToolActivity,
   WebviewMessage,
 } from '../../types/chat.js'
@@ -266,7 +266,6 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
 
     try {
       let assistantMessage: ChatMessage | undefined
-      let currentThought: ThoughtBlock | undefined
       const messages = await this.runAssistantTurn(
         {
           apiKey,
@@ -279,45 +278,47 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
         delta => {
           assistantMessage ??= this.addUiMessage({
             role: 'assistant',
-            thoughts: [],
+            trace: [],
             text: '',
           })
 
           if (delta.type === 'reasoning') {
-            currentThought = ensureCurrentThought(assistantMessage)
-            currentThought.reasoning += delta.text
+            const traceItem = ensureCurrentTrace(assistantMessage, 'reasoning')
+            traceItem.text = `${traceItem.text ?? ''}${delta.text}`
             return
           }
 
-          currentThought = finishCurrentThought(currentThought)
           assistantMessage.text += delta.text
         },
         tools => {
           assistantMessage ??= this.addUiMessage({
             role: 'assistant',
-            thoughts: [],
+            trace: [],
             text: '',
           })
-          currentThought = ensureCurrentThought(assistantMessage)
-          currentThought.tools = [...currentThought.tools, ...tools]
+          const traceItem = ensureCurrentTrace(assistantMessage, 'tools')
+          traceItem.tools = [...(traceItem.tools ?? []), ...tools]
         },
         toolCallId => {
-          if (!assistantMessage?.thoughts) {
+          if (!assistantMessage?.trace) {
             return
           }
 
-          const thought = assistantMessage.thoughts.find(thought =>
-            thought.tools.some(tool => tool.id === toolCallId),
+          const traceItem = assistantMessage.trace.find(
+            item =>
+              item.type === 'tools' &&
+              item.tools?.some(tool => tool.id === toolCallId),
           )
-          const tool = thought?.tools.find(item => item.id === toolCallId)
+          const tool = traceItem?.tools?.find(item => item.id === toolCallId)
 
           if (tool) {
             tool.state = 'done'
           }
-
-          currentThought = finishThoughtIfToolsDone(thought, currentThought)
         },
       )
+      if (assistantMessage) {
+        assistantMessage.traceFinishedAt = Date.now()
+      }
       thread.messages = messages
       await this.saveThreadState()
       await this.postThreadState()
@@ -376,19 +377,21 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       systemPrompt,
       messages: this.getActiveThread().messages,
       userText,
-      tools,
       reasoningEffort: config.reasoningEffort,
-      executeTool: toolContext
-        ? toolCall =>
-            this.executeToolCallWithStatus(
-              toolCall,
-              toolContext,
-              onToolCallDone,
-            )
+      toolConfig: toolContext
+        ? {
+            tools,
+            executeTool: toolCall =>
+              this.executeToolCallWithStatus(
+                toolCall,
+                toolContext,
+                onToolCallDone,
+              ),
+          }
         : undefined,
-      onEvent: async delta => {
-        if (delta.type === 'toolCalls') {
-          const tools = delta.toolCalls.map(toToolActivity)
+      onEvent: async event => {
+        if (event.type === 'toolCalls') {
+          const tools = event.toolCalls.map(toToolActivity)
           onToolCallsStarted(tools)
           await this.postMessage({
             type: 'assistantToolCallsStarted',
@@ -397,20 +400,20 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
           return
         }
 
-        if (delta.type === 'content') {
-          onDelta(delta)
+        if (event.type === 'content') {
+          onDelta(event)
           await this.postMessage({
             type: 'assistantMessageDelta',
-            text: delta.text,
+            text: event.text,
           })
           return
         }
 
-        if (delta.type === 'reasoning') {
-          onDelta(delta)
+        if (event.type === 'reasoning') {
+          onDelta(event)
           await this.postMessage({
             type: 'assistantReasoningDelta',
-            text: delta.text,
+            text: event.text,
           })
         }
       },
@@ -609,16 +612,9 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async executeToolCall(
-    toolCall: ChatCompletionMessageToolCall,
+    toolCall: ChatCompletionMessageFunctionToolCall,
     toolContext: ToolContext,
   ): Promise<string> {
-    if (toolCall.type !== 'function') {
-      return JSON.stringify({
-        ok: false,
-        error: `Unsupported tool call type: ${toolCall.type}`,
-      })
-    }
-
     if (this.mcpToolManager.hasTool(toolCall.function.name)) {
       return await this.mcpToolManager.executeTool(
         toolCall.function.name,
@@ -634,7 +630,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   }
 
   private async executeToolCallWithStatus(
-    toolCall: ChatCompletionMessageToolCall,
+    toolCall: ChatCompletionMessageFunctionToolCall,
     toolContext: ToolContext,
     onDone: (toolCallId: string) => void,
   ): Promise<string> {
@@ -849,70 +845,46 @@ function normalizeThreadTitle(value: unknown): string {
   return firstLine.length > 40 ? `${firstLine.slice(0, 37)}...` : firstLine
 }
 
-function toToolActivity(toolCall: ChatCompletionMessageToolCall): ToolActivity {
+function toToolActivity(
+  toolCall: ChatCompletionMessageFunctionToolCall,
+): ToolActivity {
   return {
     id: toolCall.id,
-    name:
-      toolCall.type === 'function'
-        ? formatToolName(toolCall.function.name)
-        : toolCall.type,
+    name: formatToolName(toolCall.function.name),
     state: 'running',
   }
 }
 
 function formatToolName(name: string): string {
   return name
-    .replace(/^buildin__/, '')
+    .replace(/^builtin__/, '')
     .replace(/__/g, ' /')
     .replace(/_/g, ' ')
 }
 
-function ensureCurrentThought(message: ChatMessage): ThoughtBlock {
-  message.thoughts ??= []
+function ensureCurrentTrace(
+  message: ChatMessage,
+  type: ChatTraceItem['type'],
+): ChatTraceItem {
+  message.trace ??= []
+  message.traceStartedAt ??= Date.now()
 
-  const lastThought = message.thoughts.at(-1)
+  const lastTrace = message.trace.at(-1)
 
-  if (lastThought && lastThought.tools.length === 0) {
-    return lastThought
+  if (lastTrace?.type === type) {
+    return lastTrace
   }
 
-  const thought = {
+  const traceItem: ChatTraceItem = {
     id: randomUUID(),
-    reasoning: '',
-    state: 'running' as const,
-    tools: [],
-    startedAt: Date.now(),
+    type,
+  }
+  if (type === 'reasoning') {
+    traceItem.text = ''
+  } else {
+    traceItem.tools = []
   }
 
-  message.thoughts.push(thought)
-  return thought
-}
-
-function finishCurrentThought(thought: ThoughtBlock | undefined): undefined {
-  if (thought) {
-    finishThought(thought)
-  }
-
-  return undefined
-}
-
-function finishThoughtIfToolsDone(
-  thought: ThoughtBlock | undefined,
-  currentThought: ThoughtBlock | undefined,
-): ThoughtBlock | undefined {
-  if (!thought?.tools.length) {
-    return currentThought
-  }
-
-  if (thought.tools.some(tool => tool.state !== 'done')) {
-    return currentThought
-  }
-
-  finishThought(thought)
-  return thought.id === currentThought?.id ? undefined : currentThought
-}
-
-function finishThought(thought: ThoughtBlock): void {
-  thought.state = 'done'
-  thought.finishedAt ??= Date.now()
+  message.trace.push(traceItem)
+  return traceItem
 }

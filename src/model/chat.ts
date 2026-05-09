@@ -3,8 +3,8 @@ import type {
   ChatCompletionAssistantMessageParam,
   ChatCompletionChunk,
   ChatCompletionCreateParamsStreaming,
+  ChatCompletionMessageFunctionToolCall,
   ChatCompletionMessageParam,
-  ChatCompletionMessageToolCall,
   ChatCompletionToolMessageParam,
 } from 'openai/resources/chat/completions'
 import { createModelClient, modelProviders } from './providers.js'
@@ -23,7 +23,8 @@ type AssistantMessageWithReasoning = ChatCompletionAssistantMessageParam & {
 
 interface ChatRoundResult {
   assistantMessage: ChatCompletionAssistantMessageParam
-  toolCalls: ChatCompletionMessageToolCall[]
+  finishReason?: NonNullable<ChatCompletionChunk.Choice['finish_reason']>
+  toolCalls: ChatCompletionMessageFunctionToolCall[]
 }
 
 export async function runModelChat(
@@ -35,13 +36,6 @@ export async function runModelChat(
   const requestMessages: ChatCompletionMessageParam[] = input.systemPrompt
     ? [{ role: 'system', content: input.systemPrompt }, ...messages]
     : [...messages]
-  const tools = input.tools ?? []
-
-  if (tools.length > 0 && !input.executeTool) {
-    throw new Error(
-      'runModelChat requires executeTool when tools are provided.',
-    )
-  }
 
   if (input.userText) {
     const userMessage: ChatCompletionMessageParam = {
@@ -53,6 +47,8 @@ export async function runModelChat(
     requestMessages.push(userMessage)
   }
 
+  const toolConfig = input.toolConfig
+
   while (true) {
     const result = await runChatRound(
       client,
@@ -61,7 +57,11 @@ export async function runModelChat(
       provider.reasoningMode === 'deepseek',
     )
 
-    if (result.toolCalls.length === 0) {
+    if (
+      result.finishReason !== 'tool_calls' ||
+      result.toolCalls.length === 0 ||
+      !toolConfig
+    ) {
       messages.push(result.assistantMessage)
       return messages
     }
@@ -73,7 +73,7 @@ export async function runModelChat(
 
     const toolMessages = await Promise.all(
       result.toolCalls.map(async toolCall =>
-        toToolMessage(toolCall, await input.executeTool!(toolCall)),
+        toToolMessage(toolCall, await toolConfig.executeTool(toolCall)),
       ),
     )
 
@@ -88,12 +88,12 @@ async function runChatRound(
   input: RunModelChatInput,
   includeReasoning: boolean,
 ): Promise<ChatRoundResult> {
-  const tools = input.tools ?? []
+  const tools = input.toolConfig?.tools
   const request: ChatCompletionCreateParamsStreaming = {
     model: input.model,
     messages: requestMessages,
-    tools: tools.length > 0 ? tools : undefined,
-    parallel_tool_calls: tools.length > 0 ? true : undefined,
+    tools: tools?.length ? tools : undefined,
+    parallel_tool_calls: tools?.length ? true : undefined,
     stream: true,
     reasoning_effort: input.reasoningEffort,
   }
@@ -102,15 +102,21 @@ async function runChatRound(
     maxRetries: 0,
   })
   const toolCalls = new Map<number, ToolCallAccumulator>()
+  let finishReason: ChatCompletionChunk.Choice['finish_reason'] = null
   let responseText = ''
   let reasoningText = ''
 
   for await (const chunk of stream) {
-    const delta = chunk.choices[0]?.delta
+    const choice = chunk.choices[0]
+    const delta = choice?.delta
     const content = delta?.content
     const reasoning = includeReasoning
       ? (delta as { reasoning_content?: string } | undefined)?.reasoning_content
       : undefined
+
+    if (choice?.finish_reason) {
+      finishReason = choice.finish_reason
+    }
 
     if (reasoning) {
       reasoningText += reasoning
@@ -135,6 +141,7 @@ async function runChatRound(
       reasoningContent: reasoningText,
       toolCalls: completedToolCalls,
     }),
+    finishReason: finishReason ?? undefined,
     toolCalls: completedToolCalls,
   }
 }
@@ -175,7 +182,7 @@ function accumulateToolCalls(
 function toAssistantMessage(options: {
   content: string
   reasoningContent: string
-  toolCalls: ChatCompletionMessageToolCall[]
+  toolCalls: ChatCompletionMessageFunctionToolCall[]
 }): ChatCompletionAssistantMessageParam {
   const message: AssistantMessageWithReasoning = {
     role: 'assistant',
@@ -195,7 +202,7 @@ function toAssistantMessage(options: {
 
 function toChatCompletionToolCall(
   toolCall: ToolCallAccumulator,
-): ChatCompletionMessageToolCall {
+): ChatCompletionMessageFunctionToolCall {
   if (!toolCall.id || !toolCall.name) {
     throw new Error('Model returned an incomplete tool call.')
   }
@@ -211,7 +218,7 @@ function toChatCompletionToolCall(
 }
 
 function toToolMessage(
-  toolCall: ChatCompletionMessageToolCall,
+  toolCall: ChatCompletionMessageFunctionToolCall,
   content: string,
 ): ChatCompletionToolMessageParam {
   return {

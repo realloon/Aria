@@ -4,19 +4,19 @@ export interface ToolActivity {
   state: 'running' | 'done'
 }
 
-export interface ThoughtBlock {
+export interface ChatTraceItem {
   id: string
-  reasoning: string
-  state: 'running' | 'done'
-  tools: ToolActivity[]
-  startedAt: number
-  finishedAt?: number
+  type: 'reasoning' | 'tools'
+  text?: string
+  tools?: ToolActivity[]
 }
 
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
-  thoughts?: ThoughtBlock[]
+  trace?: ChatTraceItem[]
+  traceStartedAt?: number
+  traceFinishedAt?: number
   text: string
 }
 

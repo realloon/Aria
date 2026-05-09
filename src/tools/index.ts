@@ -6,7 +6,7 @@ import { runCommandTool } from './runCommandTool.js'
 import { parseArgs } from './validation.js'
 import { writeFileTool } from './writeFileTool.js'
 
-const builtinToolSource = 'buildin'
+const builtinToolSource = 'builtin'
 
 export const builtinTools = [
   readFileTool,

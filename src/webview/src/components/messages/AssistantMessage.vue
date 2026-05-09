@@ -1,21 +1,35 @@
 <script setup lang="ts">
-import type { ThoughtBlock } from '../../../../types/chat.js'
+import { computed } from 'vue'
+import type { ChatTraceItem } from '../../../../types/chat.js'
 import MarkdownRenderer from '../MarkdownRenderer.vue'
 
-defineProps<{
-  thoughts?: ThoughtBlock[]
+const props = defineProps<{
+  trace?: ChatTraceItem[]
+  traceStartedAt?: number
+  traceFinishedAt?: number
   text: string
 }>()
 
-function formatWorkSummary(thought: ThoughtBlock): string {
-  const verb = thought.state === 'running' ? 'Working' : 'Worked'
+const traceItems = computed(() => props.trace ?? [])
 
-  return `${verb} for ${formatDuration(thought)}`
+function formatTraceSummary(): string {
+  if (!props.traceFinishedAt) {
+    return 'Thinking'
+  }
+
+  const duration = getDurationMs()
+
+  return duration < 1000 ? 'Thought' : `Thought for ${formatDuration(duration)}`
 }
 
-function formatDuration(thought: ThoughtBlock): string {
-  const durationMs = (thought.finishedAt ?? Date.now()) - thought.startedAt
+function getDurationMs(): number {
+  const startedAt = props.traceStartedAt ?? Date.now()
+  const finishedAt = props.traceFinishedAt ?? Date.now()
 
+  return finishedAt - startedAt
+}
+
+function formatDuration(durationMs: number): string {
   if (!Number.isFinite(durationMs) || durationMs < 0) {
     return '0s'
   }
@@ -34,17 +48,18 @@ function formatDuration(thought: ThoughtBlock): string {
 
 <template>
   <section>
-    <div v-for="thought in thoughts" :key="thought.id" class="thought">
-      <details v-if="thought.tools.length" class="work">
-        <summary>{{ formatWorkSummary(thought) }}</summary>
+    <details v-if="traceItems.length" class="reasoning">
+      <summary>{{ formatTraceSummary() }}</summary>
+
+      <div v-for="item in traceItems" :key="item.id" class="trace-item">
         <MarkdownRenderer
-          v-if="thought.reasoning"
-          :source="thought.reasoning"
+          v-if="item.type === 'reasoning'"
+          :source="item.text ?? ''"
         />
 
-        <ul class="tools">
+        <ul v-if="item.type === 'tools'" class="tools">
           <li
-            v-for="tool in thought.tools"
+            v-for="tool in item.tools ?? []"
             :key="tool.id"
             class="tool"
             :class="`tool-${tool.state}`"
@@ -53,31 +68,27 @@ function formatDuration(thought: ThoughtBlock): string {
             <span class="tool-name">{{ tool.name }}</span>
           </li>
         </ul>
-      </details>
-
-      <details v-else-if="thought.reasoning" class="reasoning">
-        <summary>
-          {{ thought.state === 'running' ? 'Thinking' : 'Thought' }}
-        </summary>
-        <MarkdownRenderer :source="thought.reasoning" />
-      </details>
-    </div>
+      </div>
+    </details>
 
     <MarkdownRenderer :source="text" />
   </section>
 </template>
 
 <style scoped>
-.thought {
+.trace-item {
   margin-bottom: 6px;
 }
 
-.reasoning,
-.work {
+.reasoning {
   color: var(--vscode-descriptionForeground);
   margin-bottom: 4px;
 
   & summary {
+    display: flex;
+    align-items: center;
+    gap: 1ch;
+
     cursor: pointer;
     user-select: none;
     list-style: none;
@@ -85,15 +96,24 @@ function formatDuration(thought: ThoughtBlock): string {
     &::-webkit-details-marker {
       display: none;
     }
+
+    &::after {
+      content: '';
+      width: 0;
+      height: 0;
+      border-block: 4px solid transparent;
+      border-right: 5px solid currentColor;
+      transition: transform 120ms ease;
+    }
+  }
+
+  &[open] summary::after {
+    transform: rotate(-90deg);
   }
 
   & div {
     margin-top: 4px;
   }
-}
-
-.work .tools {
-  margin-top: 6px;
 }
 
 .tools {

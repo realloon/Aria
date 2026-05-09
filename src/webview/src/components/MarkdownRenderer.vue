@@ -26,8 +26,21 @@ const renderedSource = computed(() => markdown.render(props.source))
 }
 
 .markdown:deep(p),
-.markdown:deep(pre) {
+.markdown:deep(pre),
+.markdown:deep(ol),
+.markdown:deep(ul) {
   margin-block-end: 0.5rem;
+}
+
+.markdown:deep(ol),
+.markdown:deep(ul) {
+  padding-inline-start: 2ch;
+
+  p,
+  ol,
+  ul {
+    margin-block-end: 0.25rem;
+  }
 }
 
 .markdown:deep(pre) {

@@ -1,8 +1,8 @@
 import type {
+  ChatCompletionFunctionTool,
+  ChatCompletionMessageFunctionToolCall,
   ChatCompletionMessageParam,
-  ChatCompletionMessageToolCall,
   ChatCompletionReasoningEffort,
-  ChatCompletionTool,
 } from 'openai/resources/chat/completions'
 
 export type ModelProviderId = 'openai' | 'openai-compatible' | 'deepseek'
@@ -24,7 +24,7 @@ export interface ModelProvider {
 export type ModelChatEvent =
   | { type: 'content'; text: string }
   | { type: 'reasoning'; text: string }
-  | { type: 'toolCalls'; toolCalls: ChatCompletionMessageToolCall[] }
+  | { type: 'toolCalls'; toolCalls: ChatCompletionMessageFunctionToolCall[] }
 
 export interface RunModelChatInput {
   providerId: ModelProviderId
@@ -35,10 +35,12 @@ export interface RunModelChatInput {
   messages: ChatCompletionMessageParam[]
   userText: string
   reasoningEffort: ChatReasoningEffort
-  tools?: ChatCompletionTool[]
-  executeTool?(toolCall: ChatCompletionMessageToolCall): Promise<string>
   onEvent?(event: ModelChatEvent): void | Promise<void>
   signal?: AbortSignal
+  toolConfig?: {
+    tools: ChatCompletionFunctionTool[]
+    executeTool(toolCall: ChatCompletionMessageFunctionToolCall): Promise<string>
+  }
 }
 
 export interface CompleteFimInput {
