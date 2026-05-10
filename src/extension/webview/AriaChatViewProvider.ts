@@ -74,7 +74,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     this.threadState = this.loadThreadState()
   }
 
-  async showSystemPrompt(): Promise<void> {
+  async showSystemPrompt() {
     const systemMessage = await this.getSystemMessage()
     const content =
       typeof systemMessage.content === 'string'
@@ -88,16 +88,16 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     await vscode.window.showTextDocument(document, { preview: false })
   }
 
-  async dispose(): Promise<void> {
+  async dispose() {
     await this.mcpToolManager.dispose()
   }
 
-  async createNewThread(): Promise<void> {
+  async createNewThread() {
     await this.createThread()
     this.webviewView?.show(true)
   }
 
-  async showHistory(): Promise<void> {
+  async showHistory() {
     if (this.isThreadLocked()) {
       return
     }
@@ -123,7 +123,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     this.webviewView?.show(true)
   }
 
-  async deleteThread(): Promise<void> {
+  async deleteThread() {
     if (this.isThreadLocked()) {
       return
     }
@@ -141,15 +141,13 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       },
     )
 
-    if (!selected) {
-      return
-    }
+    if (!selected) return
 
     await this.deleteThreadById(selected.threadId)
     this.webviewView?.show(true)
   }
 
-  resolveWebviewView(webviewView: vscode.WebviewView): void {
+  resolveWebviewView(webviewView: vscode.WebviewView) {
     this.webviewView = webviewView
     const webview = webviewView.webview
     const webviewDistUri = vscode.Uri.joinPath(
@@ -169,7 +167,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     })
   }
 
-  private async handleMessage(message: WebviewMessage): Promise<void> {
+  private async handleMessage(message: WebviewMessage) {
     switch (message.type) {
       case 'ready':
         await this.postThreadState()
@@ -184,7 +182,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private async handleUserText(text: string): Promise<void> {
+  private async handleUserText(text: string) {
     const userText = text.trim()
 
     if (!userText) {
@@ -207,7 +205,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     await this.sendMessage(userText)
   }
 
-  private async sendMessage(userText: string): Promise<void> {
+  private async sendMessage(userText: string) {
     if (this.busy) {
       return
     }
@@ -332,7 +330,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private async postError(message: string): Promise<void> {
+  private async postError(message: string) {
     this.addUiMessage({
       role: 'assistant',
       text: message,
@@ -353,7 +351,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     onDelta: (delta: { type: 'content' | 'reasoning'; text: string }) => void,
     onToolCallsStarted: (tools: ToolActivity[]) => void,
     onToolCallDone: (toolCallId: string) => void,
-  ): Promise<ChatCompletionMessageParam[]> {
+  ) {
     const toolContext = this.getToolContext()
     const mcpToolDefinitions = toolContext
       ? await this.mcpToolManager.getToolDefinitions(
@@ -469,14 +467,14 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private async saveThreadState(): Promise<void> {
+  private async saveThreadState() {
     await this.context.workspaceState.update(
       AriaChatViewProvider.threadStateKey,
       this.threadState,
     )
   }
 
-  private async createThread(): Promise<void> {
+  private async createThread() {
     if (this.isThreadLocked()) {
       return
     }
@@ -488,7 +486,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     await this.postThreadState()
   }
 
-  private async selectThread(threadId: string): Promise<void> {
+  private async selectThread(threadId: string) {
     if (this.isThreadLocked()) {
       return
     }
@@ -502,14 +500,12 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     await this.postThreadState()
   }
 
-  private async deleteThreadById(threadId: string): Promise<void> {
+  private async deleteThreadById(threadId: string) {
     const index = this.threadState.threads.findIndex(
       thread => thread.id === threadId,
     )
 
-    if (index === -1) {
-      return
-    }
+    if (index === -1) return
 
     this.threadState.threads.splice(index, 1)
 
@@ -527,7 +523,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     await this.postThreadState()
   }
 
-  private createEmptyThread(): Thread {
+  private createEmptyThread() {
     const now = Date.now()
 
     return {
@@ -537,10 +533,10 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
       updatedAt: now,
       messages: [],
       uiMessages: [],
-    }
+    } as Thread
   }
 
-  private getActiveThread(): Thread {
+  private getActiveThread() {
     const thread = this.threadState.threads.find(
       item => item.id === this.threadState.activeThreadId,
     )
@@ -552,7 +548,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     return thread
   }
 
-  private addUiMessage(message: Omit<ChatMessage, 'id'>): ChatMessage {
+  private addUiMessage(message: Omit<ChatMessage, 'id'>) {
     const thread = this.getActiveThread()
     const uiMessage = {
       id: randomUUID(),
@@ -563,10 +559,10 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     thread.updatedAt = Date.now()
     this.sortThreads()
 
-    return uiMessage
+    return uiMessage as ChatMessage
   }
 
-  private updateThreadTitle(thread: Thread, userText: string): void {
+  private updateThreadTitle(thread: Thread, userText: string) {
     if (thread.title !== 'New Thread') {
       return
     }
@@ -574,17 +570,17 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     thread.title = normalizeThreadTitle(userText)
   }
 
-  private sortThreads(): void {
+  private sortThreads() {
     this.threadState.threads.sort(
       (left, right) => right.updatedAt - left.updatedAt,
     )
   }
 
-  private isThreadLocked(): boolean {
+  private isThreadLocked() {
     return this.busy || this.pendingUserInput !== undefined
   }
 
-  private async postThreadState(): Promise<void> {
+  private async postThreadState() {
     const activeThread = this.getActiveThread()
 
     await this.postMessage({
@@ -593,7 +589,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     })
   }
 
-  async postChatModelState(): Promise<void> {
+  async postChatModelState() {
     const config = vscode.workspace.getConfiguration('aria.api')
     const providerId = await this.getConfiguredProviderId(config)
 
@@ -614,7 +610,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   private async executeToolCall(
     toolCall: ChatCompletionMessageFunctionToolCall,
     toolContext: ToolContext,
-  ): Promise<string> {
+  ) {
     if (this.mcpToolManager.hasTool(toolCall.function.name)) {
       return await this.mcpToolManager.executeTool(
         toolCall.function.name,
@@ -633,7 +629,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     toolCall: ChatCompletionMessageFunctionToolCall,
     toolContext: ToolContext,
     onDone: (toolCallId: string) => void,
-  ): Promise<string> {
+  ) {
     try {
       return await this.executeToolCall(toolCall, toolContext)
     } finally {
@@ -645,13 +641,11 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private async postMessage(message: ExtensionMessage): Promise<void> {
+  private async postMessage(message: ExtensionMessage) {
     await this.webviewView?.webview.postMessage(message)
   }
 
-  private async getConfiguredProviderId(
-    config: vscode.WorkspaceConfiguration,
-  ): Promise<ModelProviderId | undefined> {
+  private async getConfiguredProviderId(config: vscode.WorkspaceConfiguration) {
     try {
       return parseModelProviderId(config.get<string>('provider')?.trim())
     } catch (error) {
@@ -664,7 +658,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private async selectChatModel(model: string): Promise<void> {
+  private async selectChatModel(model: string) {
     if (this.isThreadLocked()) {
       await this.postChatModelState()
       return
@@ -696,7 +690,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     await this.postChatModelState()
   }
 
-  private async getSystemMessage(): Promise<ChatCompletionMessageParam> {
+  private async getSystemMessage() {
     const identityContent = await this.readIdentityInstructions()
     const agentsContent = await this.readAgentsInstructions()
 
@@ -709,7 +703,7 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
   private buildSystemPrompt(
     identityContent: string,
     agentsContent: string | undefined,
-  ): string {
+  ) {
     const repositoryInstructions = agentsContent
       ? `\n  <repository_instructions><![CDATA[\n${agentsContent}\n  ]]></repository_instructions>`
       : ''
@@ -721,7 +715,7 @@ ${identityContent}
 </system_prompt>`
   }
 
-  private async readIdentityInstructions(): Promise<string> {
+  private async readIdentityInstructions() {
     const identityUri = vscode.Uri.joinPath(
       this.context.extensionUri,
       'resources',
@@ -732,7 +726,7 @@ ${identityContent}
     return new TextDecoder('utf-8').decode(content).trim()
   }
 
-  private async readAgentsInstructions(): Promise<string | undefined> {
+  private async readAgentsInstructions() {
     const workspaceFolder = this.getCurrentWorkspaceFolder()
 
     if (!workspaceFolder) {
@@ -753,7 +747,7 @@ ${identityContent}
     }
   }
 
-  private getCurrentWorkspaceFolder(): vscode.WorkspaceFolder | undefined {
+  private getCurrentWorkspaceFolder() {
     return vscode.workspace.workspaceFolders?.[0]
   }
 
@@ -786,7 +780,7 @@ ${identityContent}
     })
   }
 
-  private getHtml(webview: vscode.Webview): string {
+  private getHtml(webview: vscode.Webview) {
     const nonce = getNonce()
     const scriptUri = this.getWebviewUri(webview, 'assets/index.js')
     const styleUri = this.getWebviewUri(webview, 'assets/index.css')
@@ -807,10 +801,7 @@ ${identityContent}
 </html>`
   }
 
-  private getWebviewUri(
-    webview: vscode.Webview,
-    relativePath: string,
-  ): vscode.Uri {
+  private getWebviewUri(webview: vscode.Webview, relativePath: string) {
     return webview.asWebviewUri(
       vscode.Uri.joinPath(
         this.context.extensionUri,
@@ -822,7 +813,7 @@ ${identityContent}
   }
 }
 
-function getNonce(): string {
+function getNonce() {
   const possible =
     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
   let text = ''
@@ -834,7 +825,7 @@ function getNonce(): string {
   return text
 }
 
-function normalizeThreadTitle(value: unknown): string {
+function normalizeThreadTitle(value: unknown) {
   const text = typeof value === 'string' ? value.trim() : ''
   const firstLine = text.split(/\r?\n/, 1)[0]?.trim()
 
@@ -845,27 +836,22 @@ function normalizeThreadTitle(value: unknown): string {
   return firstLine.length > 40 ? `${firstLine.slice(0, 37)}...` : firstLine
 }
 
-function toToolActivity(
-  toolCall: ChatCompletionMessageFunctionToolCall,
-): ToolActivity {
+function toToolActivity(toolCall: ChatCompletionMessageFunctionToolCall) {
   return {
     id: toolCall.id,
     name: formatToolName(toolCall.function.name),
     state: 'running',
-  }
+  } as ToolActivity
 }
 
-function formatToolName(name: string): string {
+function formatToolName(name: string) {
   return name
     .replace(/^builtin__/, '')
     .replace(/__/g, ' /')
     .replace(/_/g, ' ')
 }
 
-function ensureCurrentTrace(
-  message: ChatMessage,
-  type: ChatTraceItem['type'],
-): ChatTraceItem {
+function ensureCurrentTrace(message: ChatMessage, type: ChatTraceItem['type']) {
   message.trace ??= []
   message.traceStartedAt ??= Date.now()
 

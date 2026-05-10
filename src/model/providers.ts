@@ -26,9 +26,7 @@ export const modelProviders = {
   },
 } as const satisfies Record<ModelProviderId, ModelProvider>
 
-export function parseModelProviderId(
-  value: string | undefined,
-): ModelProviderId {
+export function parseModelProviderId(value: string | undefined) {
   switch (value) {
     case undefined:
     case '':
@@ -47,7 +45,7 @@ export function createModelClient(options: {
   providerId: ModelProviderId
   apiKey: string
   baseURL?: string
-}): OpenAI {
+}) {
   const provider = modelProviders[options.providerId]
   const baseURL =
     options.providerId === 'openai-compatible'

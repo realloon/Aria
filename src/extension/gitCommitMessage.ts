@@ -69,15 +69,13 @@ interface ChangeContext {
 
 export function registerGenerateCommitMessageCommand(
   context: vscode.ExtensionContext,
-): vscode.Disposable {
+) {
   return vscode.commands.registerCommand('aria.generateCommitMessage', () =>
     handleGenerateCommitMessage(context),
   )
 }
 
-async function handleGenerateCommitMessage(
-  context: vscode.ExtensionContext,
-): Promise<void> {
+async function handleGenerateCommitMessage(context: vscode.ExtensionContext) {
   try {
     await generateCommitMessage(context)
   } catch (error) {
@@ -89,9 +87,7 @@ async function handleGenerateCommitMessage(
   }
 }
 
-async function generateCommitMessage(
-  context: vscode.ExtensionContext,
-): Promise<void> {
+async function generateCommitMessage(context: vscode.ExtensionContext) {
   const generatedMode = await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
@@ -125,7 +121,7 @@ async function generateCommitMessage(
   }
 }
 
-async function getCurrentRepository(): Promise<GitRepository> {
+async function getCurrentRepository() {
   const api = await getGitApi()
 
   if (api.repositories.length === 0) {
@@ -169,7 +165,7 @@ async function getCurrentRepository(): Promise<GitRepository> {
   return selected.repository
 }
 
-async function getGitApi(): Promise<GitApi> {
+async function getGitApi() {
   const extension = vscode.extensions.getExtension<GitExtension>('vscode.git')
 
   if (!extension) {
@@ -223,7 +219,7 @@ async function buildDiffForChanges(
   repository: GitRepository,
   changes: GitChange[],
   options: { staged: boolean },
-): Promise<string> {
+) {
   const diffs: string[] = []
   const seenPaths = new Set<string>()
 
@@ -245,9 +241,7 @@ async function buildDiffForChanges(
   return diffs.join('\n\n')
 }
 
-async function buildUntrackedSummary(
-  repository: GitRepository,
-): Promise<string> {
+async function buildUntrackedSummary(repository: GitRepository) {
   const changes = repository.state.untrackedChanges.slice(0, maxUntrackedFiles)
 
   if (changes.length === 0) {
@@ -291,7 +285,7 @@ async function buildUntrackedSummary(
 async function requestCommitMessage(
   settings: ChatModelSettings,
   changeContext: ChangeContext,
-): Promise<string> {
+) {
   const messages = await runModelChat({
     providerId: settings.providerId,
     apiKey: settings.apiKey,
@@ -312,9 +306,7 @@ async function requestCommitMessage(
   return commitMessage
 }
 
-function getChatModelSettings(
-  context: vscode.ExtensionContext,
-): ChatModelSettings {
+function getChatModelSettings(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration('aria.api')
   const providerId = parseModelProviderId(
     config.get<string>('provider')?.trim(),
@@ -339,10 +331,11 @@ function getChatModelSettings(
     reasoningEffort: parseReasoningEffort(
       config.get<string>('reasoningEffort')?.trim(),
     ),
-  }
+  } as ChatModelSettings
 }
 
-function buildCommitSystemPrompt(): string {
+// todo: extract
+function buildCommitSystemPrompt() {
   return `You generate Git commit messages.
 
 Rules:
@@ -354,7 +347,7 @@ Rules:
 - Do not mention files unless the filename is the product-visible concept.`
 }
 
-function getLastAssistantText(messages: ChatCompletionMessageParam[]): string {
+function getLastAssistantText(messages: ChatCompletionMessageParam[]) {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index]
 
@@ -380,7 +373,7 @@ function getLastAssistantText(messages: ChatCompletionMessageParam[]): string {
   return ''
 }
 
-function normalizeCommitMessage(value: string): string {
+function normalizeCommitMessage(value: string) {
   return (
     value
       .trim()
@@ -395,7 +388,7 @@ function normalizeCommitMessage(value: string): string {
   )
 }
 
-function truncateDiff(diff: string): string {
+function truncateDiff(diff: string) {
   if (diff.length <= maxDiffCharacters) {
     return diff
   }
@@ -403,10 +396,10 @@ function truncateDiff(diff: string): string {
   return `${diff.slice(0, maxDiffCharacters)}\n\n[Diff truncated.]`
 }
 
-function toRepositoryPath(repository: GitRepository, uri: vscode.Uri): string {
+function toRepositoryPath(repository: GitRepository, uri: vscode.Uri) {
   return relative(repository.rootUri.fsPath, uri.fsPath).split(sep).join('/')
 }
 
-function isBinary(bytes: Uint8Array): boolean {
+function isBinary(bytes: Uint8Array) {
   return bytes.slice(0, 8_000).some(byte => byte === 0)
 }

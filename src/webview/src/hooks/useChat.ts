@@ -20,7 +20,7 @@ export function useChat() {
     () => input.value.trim().length > 0 && !loading.value,
   )
 
-  function sendMessage(): void {
+  function sendMessage() {
     const text = input.value.trim()
 
     if (!text || loading.value) {
@@ -38,16 +38,14 @@ export function useChat() {
     void scrollToEnd()
   }
 
-  function chooseOption(option: string): void {
-    if (loading.value) {
-      return
-    }
+  function chooseOption(option: string) {
+    if (loading.value) return
 
     input.value = option
     sendMessage()
   }
 
-  function selectChatModel(model: string): void {
+  function selectChatModel(model: string) {
     if (loading.value || model === selectedChatModel.value) {
       return
     }
@@ -56,7 +54,7 @@ export function useChat() {
     vscode.postMessage({ type: 'selectChatModel', model })
   }
 
-  async function scrollToEnd(): Promise<void> {
+  async function scrollToEnd() {
     await nextTick()
     scrollHost.value?.scrollTo({
       top: scrollHost.value.scrollHeight,
@@ -64,7 +62,7 @@ export function useChat() {
     })
   }
 
-  function handleExtensionMessage(event: MessageEvent): void {
+  function handleExtensionMessage(event: MessageEvent) {
     const message = event.data as ExtensionMessage
 
     switch (message.type) {
@@ -161,7 +159,7 @@ export function useChat() {
     window.removeEventListener('message', handleExtensionMessage)
   })
 
-  function ensureAssistantMessage(): ChatMessage {
+  function ensureAssistantMessage() {
     const lastMessage = messages.value.at(-1)
 
     if (lastMessage?.role === 'assistant') {
@@ -194,10 +192,7 @@ export function useChat() {
   }
 }
 
-function ensureCurrentTrace(
-  message: ChatMessage,
-  type: ChatTraceItem['type'],
-): ChatTraceItem {
+function ensureCurrentTrace(message: ChatMessage, type: ChatTraceItem['type']) {
   message.trace ??= []
   message.traceStartedAt ??= Date.now()
 
@@ -221,6 +216,6 @@ function ensureCurrentTrace(
   return traceItem
 }
 
-function createLocalId(): string {
+function createLocalId() {
   return `local-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }

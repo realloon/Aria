@@ -35,7 +35,7 @@ export async function executeBuiltinTool(
   name: string,
   argsJson: string,
   context: BuiltinToolContext,
-): Promise<string> {
+) {
   const tool = toolsByName.get(name)
 
   if (!tool) {
@@ -54,6 +54,6 @@ export async function executeBuiltinTool(
   }
 }
 
-function toNamespacedToolName(toolName: string): string {
+function toNamespacedToolName(toolName: string) {
   return `${builtinToolSource}__${toolName}`
 }

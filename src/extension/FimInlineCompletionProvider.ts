@@ -16,15 +16,10 @@ const maxRelatedStructures = 4
 const maxRelatedSnippetLength = 1_200
 const lspCommandTimeoutMs = 700
 
-export interface FimContext {
-  prefix: string
-  suffix: string
-}
-
-export interface FimSettings {
-  enabled: boolean
-  maxTokens: number
-}
+// export interface FimContext {
+//   prefix: string
+//   suffix: string
+// }
 
 export class FimInlineCompletionProvider
   implements vscode.InlineCompletionItemProvider
@@ -34,7 +29,7 @@ export class FimInlineCompletionProvider
     position: vscode.Position,
     context: vscode.InlineCompletionContext,
     token: vscode.CancellationToken,
-  ): Promise<vscode.InlineCompletionItem[] | undefined> {
+  ) {
     if (context.selectedCompletionInfo || token.isCancellationRequested) {
       return undefined
     }
@@ -134,7 +129,7 @@ export class FimInlineCompletionProvider
     document: vscode.TextDocument,
     position: vscode.Position,
     context: vscode.InlineCompletionContext,
-  ): boolean {
+  ) {
     if (document.isClosed || document.lineAt(position).text.length > 2_000) {
       return false
     }
@@ -158,7 +153,7 @@ export class FimInlineCompletionProvider
   }
 }
 
-export function getFimSettings(): FimSettings {
+export function getFimSettings() {
   const fimConfig = vscode.workspace.getConfiguration('aria.fim')
 
   return {
@@ -170,7 +165,7 @@ export function getFimSettings(): FimSettings {
 export async function buildFimContext(
   document: vscode.TextDocument,
   position: vscode.Position,
-): Promise<FimContext> {
+) {
   const documentSymbols = await getFlatDocumentSymbols(document)
   const currentStructure = getCurrentStructure(documentSymbols, position)
   const localContext = buildLocalFimWindow(document, position, currentStructure)
@@ -192,7 +187,7 @@ async function getSymbolContext(
   position: vscode.Position,
   documentSymbols: FlatSymbol[],
   currentStructure: FlatSymbol | undefined,
-): Promise<string> {
+) {
   const commentStyle = getCommentStyle(document.languageId)
 
   if (!commentStyle) {
@@ -228,7 +223,7 @@ function buildLocalFimWindow(
   document: vscode.TextDocument,
   position: vscode.Position,
   currentStructure: FlatSymbol | undefined,
-): FimContext {
+) {
   const documentStart = new vscode.Position(0, 0)
   const documentEnd = getDocumentEnd(document)
 
@@ -282,7 +277,7 @@ function buildWindowAroundStructurePrefix(
   document: vscode.TextDocument,
   currentStructure: FlatSymbol,
   structurePrefix: string,
-): string {
+) {
   if (structurePrefix.length >= maxPrefixLength) {
     return tail(structurePrefix, maxPrefixLength)
   }
@@ -301,7 +296,7 @@ function buildWindowAroundStructureSuffix(
   document: vscode.TextDocument,
   currentStructure: FlatSymbol,
   structureSuffix: string,
-): string {
+) {
   if (structureSuffix.length >= maxSuffixLength) {
     return head(structureSuffix, maxSuffixLength)
   }
@@ -316,9 +311,7 @@ function buildWindowAroundStructureSuffix(
   )}`
 }
 
-async function getFlatDocumentSymbols(
-  document: vscode.TextDocument,
-): Promise<FlatSymbol[]> {
+async function getFlatDocumentSymbols(document: vscode.TextDocument) {
   const symbols = await withTimeout(
     vscode.commands.executeCommand<
       Array<vscode.DocumentSymbol | vscode.SymbolInformation> | undefined
@@ -329,22 +322,20 @@ async function getFlatDocumentSymbols(
   return symbols?.length ? flattenSymbols(symbols) : []
 }
 
-function getCurrentStructure(
-  symbols: FlatSymbol[],
-  position: vscode.Position,
-): FlatSymbol | undefined {
+function getCurrentStructure(symbols: FlatSymbol[], position: vscode.Position) {
   return symbols
     .filter(
       symbol => isStructureKind(symbol.kind) && symbol.range.contains(position),
     )
-    .sort((left, right) => rangeSize(left.range) - rangeSize(right.range))[0]
+    .sort((left, right) => rangeSize(left.range) - rangeSize(right.range))
+    .at(0)
 }
 
 async function getDocumentSymbolSummaries(
   document: vscode.TextDocument,
   position: vscode.Position,
   flattened: FlatSymbol[],
-): Promise<SymbolSummary[]> {
+) {
   if (!flattened.length) {
     return []
   }
@@ -366,7 +357,7 @@ async function getDocumentSymbolSummaries(
 async function getRelatedStructureSummaries(
   document: vscode.TextDocument,
   currentStructure: FlatSymbol,
-): Promise<RelatedStructureSummary[]> {
+) {
   const position = currentStructure.selectionRange.start
   const [implementations, definitions, typeDefinitions, references] =
     await Promise.all([
@@ -412,7 +403,7 @@ async function getLspLocations(
   command: string,
   document: vscode.TextDocument,
   position: vscode.Position,
-): Promise<vscode.Location[]> {
+) {
   const result = await withTimeout(
     vscode.commands.executeCommand<
       Array<vscode.Location | vscode.LocationLink>
@@ -426,7 +417,7 @@ async function getLspLocations(
 async function getReferenceLocations(
   document: vscode.TextDocument,
   position: vscode.Position,
-): Promise<vscode.Location[]> {
+) {
   const result = await withTimeout(
     vscode.commands.executeCommand<vscode.Location[]>(
       'vscode.executeReferenceProvider',
@@ -443,7 +434,7 @@ async function getReferenceLocations(
 async function toRelatedStructureSummary(
   relation: string,
   location: vscode.Location,
-): Promise<RelatedStructureSummary | undefined> {
+) {
   try {
     const document = await vscode.workspace.openTextDocument(location.uri)
     const symbols = await getFlatDocumentSymbols(document)
@@ -472,7 +463,7 @@ async function toRelatedStructureSummary(
 async function getWorkspaceSymbolSummaries(
   document: vscode.TextDocument,
   position: vscode.Position,
-): Promise<SymbolSummary[]> {
+) {
   const query = getWorkspaceSymbolQuery(document, position)
 
   if (!query) {
@@ -522,7 +513,7 @@ interface RelatedStructureSummary extends SymbolSummary {
 function flattenSymbols(
   symbols: Array<vscode.DocumentSymbol | vscode.SymbolInformation>,
   containerName?: string,
-): FlatSymbol[] {
+) {
   const flattened: FlatSymbol[] = []
 
   for (const symbol of symbols) {
@@ -557,11 +548,11 @@ function isDocumentSymbol(
   return 'children' in symbol
 }
 
-function rangeSize(range: vscode.Range): number {
+function rangeSize(range: vscode.Range) {
   return range.end.line - range.start.line
 }
 
-function isStructureKind(kind: vscode.SymbolKind): boolean {
+function isStructureKind(kind: vscode.SymbolKind) {
   return [
     vscode.SymbolKind.Class,
     vscode.SymbolKind.Constructor,
@@ -575,7 +566,7 @@ function isStructureKind(kind: vscode.SymbolKind): boolean {
   ].includes(kind)
 }
 
-function uniqueSymbols(symbols: FlatSymbol[]): FlatSymbol[] {
+function uniqueSymbols(symbols: FlatSymbol[]) {
   const seen = new Set<string>()
   const unique: FlatSymbol[] = []
 
@@ -597,7 +588,7 @@ function uniqueRelatedLocations(
   candidates: RelatedLocationCandidate[],
   currentUri: vscode.Uri,
   currentRange: vscode.Range,
-): RelatedLocationCandidate[] {
+) {
   const seen = new Set<string>()
   const unique: RelatedLocationCandidate[] = []
 
@@ -625,7 +616,7 @@ function uniqueRelatedLocations(
 function uniqueWorkspaceSymbols(
   symbols: vscode.SymbolInformation[],
   currentUri: vscode.Uri,
-): vscode.SymbolInformation[] {
+) {
   const seen = new Set<string>()
   const unique: vscode.SymbolInformation[] = []
 
@@ -648,10 +639,7 @@ function uniqueWorkspaceSymbols(
   return unique
 }
 
-function toSymbolSummary(
-  symbol: FlatSymbol,
-  fallbackUri: vscode.Uri,
-): SymbolSummary {
+function toSymbolSummary(symbol: FlatSymbol, fallbackUri: vscode.Uri) {
   return {
     name: symbol.name,
     kind: symbol.kind,
@@ -661,9 +649,7 @@ function toSymbolSummary(
   }
 }
 
-function toWorkspaceSymbolSummary(
-  symbol: vscode.SymbolInformation,
-): SymbolSummary {
+function toWorkspaceSymbolSummary(symbol: vscode.SymbolInformation) {
   return {
     name: symbol.name,
     kind: symbol.kind,
@@ -673,9 +659,7 @@ function toWorkspaceSymbolSummary(
   }
 }
 
-function toLocation(
-  location: vscode.Location | vscode.LocationLink,
-): vscode.Location {
+function toLocation(location: vscode.Location | vscode.LocationLink) {
   if ('uri' in location) {
     return location
   }
@@ -686,10 +670,7 @@ function toLocation(
   )
 }
 
-async function withTimeout<T>(
-  promise: Thenable<T>,
-  timeoutMs: number,
-): Promise<T | undefined> {
+async function withTimeout<T>(promise: Thenable<T>, timeoutMs: number) {
   try {
     return await Promise.race([
       promise,
@@ -702,14 +683,14 @@ async function withTimeout<T>(
   }
 }
 
-function compactSnippet(code: string): string {
+function compactSnippet(code: string) {
   return head(code.trim(), maxRelatedSnippetLength)
 }
 
 function getWorkspaceSymbolQuery(
   document: vscode.TextDocument,
   position: vscode.Position,
-): string {
+) {
   const linePrefix = document.lineAt(position).text.slice(0, position.character)
   const identifiers = [...linePrefix.matchAll(/[A-Za-z_$][\w$]*/g)].map(
     match => match[0],
@@ -719,10 +700,7 @@ function getWorkspaceSymbolQuery(
   return query.length >= 2 ? query : ''
 }
 
-function formatSymbolSection(
-  title: string,
-  symbols: SymbolSummary[],
-): string[] {
+function formatSymbolSection(title: string, symbols: SymbolSummary[]) {
   if (symbols.length === 0) {
     return []
   }
@@ -740,9 +718,7 @@ function formatSymbolSection(
   ]
 }
 
-function formatRelatedStructureSection(
-  summaries: RelatedStructureSummary[],
-): string[] {
+function formatRelatedStructureSection(summaries: RelatedStructureSummary[]) {
   if (summaries.length === 0) {
     return []
   }
@@ -759,7 +735,7 @@ function formatRelatedStructureSection(
   ]
 }
 
-function symbolKindName(kind: vscode.SymbolKind): string {
+function symbolKindName(kind: vscode.SymbolKind) {
   return vscode.SymbolKind[kind] ?? 'Symbol'
 }
 
@@ -822,7 +798,7 @@ function getCommentStyle(languageId: string): CommentStyle | undefined {
   return undefined
 }
 
-function toCommentBlock(lines: string[], style: CommentStyle): string {
+function toCommentBlock(lines: string[], style: CommentStyle) {
   const text = head(lines.join('\n'), maxSymbolContextLength)
 
   if (style.type === 'line') {
@@ -839,23 +815,23 @@ function toCommentBlock(lines: string[], style: CommentStyle): string {
   ].join('\n')
 }
 
-function getDocumentEnd(document: vscode.TextDocument): vscode.Position {
+function getDocumentEnd(document: vscode.TextDocument) {
   const lastLine = document.lineAt(document.lineCount - 1)
 
   return new vscode.Position(lastLine.lineNumber, lastLine.text.length)
 }
 
-function tail(value: string, maxLength: number): string {
+function tail(value: string, maxLength: number) {
   return value.length > maxLength
     ? value.slice(value.length - maxLength)
     : value
 }
 
-function head(value: string, maxLength: number): string {
+function head(value: string, maxLength: number) {
   return value.length > maxLength ? value.slice(0, maxLength) : value
 }
 
-function normalizeEol(value: string, eol: vscode.EndOfLine): string {
+function normalizeEol(value: string, eol: vscode.EndOfLine) {
   if (eol === vscode.EndOfLine.CRLF) {
     return value.replace(/\r?\n/g, '\r\n')
   }
@@ -863,7 +839,7 @@ function normalizeEol(value: string, eol: vscode.EndOfLine): string {
   return value.replace(/\r\n/g, '\n')
 }
 
-function clampMaxTokens(value: number | undefined): number {
+function clampMaxTokens(value: number | undefined) {
   if (value === undefined || !Number.isFinite(value)) {
     throw new Error('Configure aria.fim.maxTokens before using FIM.')
   }

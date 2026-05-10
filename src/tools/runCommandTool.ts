@@ -40,11 +40,7 @@ export const runCommandTool: BuiltinTool = {
   },
 }
 
-function runCommand(
-  command: string,
-  cwd: string,
-  timeout: number,
-): Promise<unknown> {
+function runCommand(command: string, cwd: string, timeout: number) {
   return new Promise(resolve => {
     exec(
       command,
@@ -65,7 +61,7 @@ function runCommand(
   })
 }
 
-function getExitCode(error: Error | null): number {
+function getExitCode(error: Error | null) {
   if (!error) {
     return 0
   }

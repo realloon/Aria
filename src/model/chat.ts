@@ -27,9 +27,7 @@ interface ChatRoundResult {
   toolCalls: ChatCompletionMessageFunctionToolCall[]
 }
 
-export async function runModelChat(
-  input: RunModelChatInput,
-): Promise<ChatCompletionMessageParam[]> {
+export async function runModelChat(input: RunModelChatInput) {
   const client = createModelClient(input)
   const provider = modelProviders[input.providerId]
   const messages = [...input.messages]
@@ -87,7 +85,7 @@ async function runChatRound(
   requestMessages: ChatCompletionMessageParam[],
   input: RunModelChatInput,
   includeReasoning: boolean,
-): Promise<ChatRoundResult> {
+) {
   const tools = input.toolConfig?.tools
   const request: ChatCompletionCreateParamsStreaming = {
     model: input.model,
@@ -146,17 +144,14 @@ async function runChatRound(
   }
 }
 
-async function emitEvent(
-  input: RunModelChatInput,
-  event: ModelChatEvent,
-): Promise<void> {
+async function emitEvent(input: RunModelChatInput, event: ModelChatEvent) {
   await input.onEvent?.(event)
 }
 
 function accumulateToolCalls(
   toolCalls: Map<number, ToolCallAccumulator>,
   deltas: ChatCompletionChunk.Choice.Delta.ToolCall[],
-): void {
+) {
   for (const toolCall of deltas) {
     const current = toolCalls.get(toolCall.index) ?? {
       index: toolCall.index,
@@ -183,7 +178,7 @@ function toAssistantMessage(options: {
   content: string
   reasoningContent: string
   toolCalls: ChatCompletionMessageFunctionToolCall[]
-}): ChatCompletionAssistantMessageParam {
+}) {
   const message: AssistantMessageWithReasoning = {
     role: 'assistant',
     content: options.content || null,

@@ -1,7 +1,7 @@
 import { createModelClient } from './providers.js'
 import type { CompleteFimInput } from '../types/model.js'
 
-export async function completeFim(input: CompleteFimInput): Promise<string> {
+export async function completeFim(input: CompleteFimInput) {
   const client = createModelClient(input)
   const response = await client.completions.create(
     {

@@ -46,10 +46,8 @@ export class McpToolManager {
   private readonly toolsByOpenAiName = new Map<string, McpToolRef>()
   private configSignature = ''
 
-  async getToolDefinitions(
-    workspaceFolder: vscode.WorkspaceFolder,
-  ): Promise<ChatCompletionFunctionTool[]> {
-    const configs = await getMcpServerConfigs(workspaceFolder)
+  async getToolDefinitions(workspaceFolder: vscode.WorkspaceFolder) {
+    const configs = await readMcpServerConfigs(workspaceFolder)
     const signature = JSON.stringify(configs)
 
     if (signature !== this.configSignature) {
@@ -99,11 +97,11 @@ export class McpToolManager {
     return definitions
   }
 
-  hasTool(name: string): boolean {
+  hasTool(name: string) {
     return this.toolsByOpenAiName.has(name)
   }
 
-  async executeTool(name: string, argsJson: string): Promise<string> {
+  async executeTool(name: string, argsJson: string) {
     const toolRef = this.toolsByOpenAiName.get(name)
 
     if (!toolRef) {
@@ -136,7 +134,7 @@ export class McpToolManager {
     }
   }
 
-  async dispose(): Promise<void> {
+  async dispose() {
     const connections = [...this.connections.values()]
     this.connections.clear()
     this.toolsByOpenAiName.clear()
@@ -148,17 +146,14 @@ export class McpToolManager {
     )
   }
 
-  private async getConnection(
-    serverName: string,
-    config: McpServerConfig,
-  ): Promise<McpConnection> {
+  private async getConnection(serverName: string, config: McpServerConfig) {
     const cached = this.connections.get(serverName)
 
     if (cached) {
       return cached
     }
 
-    const mcpClient = await loadMcpClient()
+    const mcpClient = await import('@modelcontextprotocol/client')
     const client = new mcpClient.Client({
       name: 'aria',
       version: '0.4.0',
@@ -173,15 +168,7 @@ export class McpToolManager {
   }
 }
 
-function getMcpServerConfigs(
-  workspaceFolder: vscode.WorkspaceFolder,
-): Promise<Array<[string, McpServerConfig]>> {
-  return readMcpServerConfigs(workspaceFolder)
-}
-
-async function readMcpServerConfigs(
-  workspaceFolder: vscode.WorkspaceFolder,
-): Promise<Array<[string, McpServerConfig]>> {
+async function readMcpServerConfigs(workspaceFolder: vscode.WorkspaceFolder) {
   const configUri = vscode.Uri.joinPath(
     workspaceFolder.uri,
     '.agents',
@@ -224,7 +211,7 @@ function parseMcpServerConfig(
   name: string,
   value: unknown,
   workspaceFolder: vscode.WorkspaceFolder,
-): McpServerConfig {
+) {
   if (!isValidServerName(name)) {
     throw new Error(
       `MCP server name must use only letters, numbers, underscores, or hyphens: ${name}`,
@@ -273,10 +260,7 @@ function parseMcpServerConfig(
   throw new Error(`MCP server ${name} must define command or url.`)
 }
 
-function createTransport(
-  config: McpServerConfig,
-  mcpClient: McpClientModule,
-): Transport {
+function createTransport(config: McpServerConfig, mcpClient: McpClientModule) {
   if ('command' in config) {
     const transport = new mcpClient.StdioClientTransport({
       command: config.command,
@@ -305,11 +289,7 @@ function createTransport(
   })
 }
 
-async function loadMcpClient(): Promise<McpClientModule> {
-  return await import('@modelcontextprotocol/client')
-}
-
-function toOpenAiToolName(serverName: string, toolName: string): string {
+function toOpenAiToolName(serverName: string, toolName: string) {
   const name = `${serverName}__${toolName}`
 
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(name)) {
@@ -321,7 +301,7 @@ function toOpenAiToolName(serverName: string, toolName: string): string {
   return name
 }
 
-function serializeToolResult(result: CallToolResult): string {
+function serializeToolResult(result: CallToolResult) {
   return JSON.stringify({
     ok: result.isError !== true,
     result,
@@ -332,7 +312,7 @@ function getRequiredString(
   value: Record<string, unknown>,
   key: string,
   serverName: string,
-): string {
+) {
   const item = value[key]
 
   if (typeof item !== 'string' || item.trim() === '') {
@@ -346,7 +326,7 @@ function getOptionalStringArray(
   value: Record<string, unknown>,
   key: string,
   serverName: string,
-): string[] | undefined {
+) {
   const item = value[key]
 
   if (item === undefined) {
@@ -357,7 +337,7 @@ function getOptionalStringArray(
     throw new Error(`MCP server ${serverName}.${key} must be a string array.`)
   }
 
-  return item
+  return item as string[]
 }
 
 function expandOptionalString(
@@ -365,7 +345,7 @@ function expandOptionalString(
   key: string,
   serverName: string,
   workspaceFolder: vscode.WorkspaceFolder,
-): string | undefined {
+) {
   if (value === undefined) {
     return undefined
   }
@@ -382,10 +362,8 @@ function expandOptionalStringRecord(
   key: string,
   serverName: string,
   workspaceFolder: vscode.WorkspaceFolder,
-): Record<string, string> | undefined {
-  if (value === undefined) {
-    return undefined
-  }
+) {
+  if (value === undefined) return
 
   if (
     !isRecord(value) ||
@@ -405,7 +383,7 @@ function expandOptionalStringRecord(
 function expandVariables(
   value: string,
   workspaceFolder: vscode.WorkspaceFolder,
-): string {
+) {
   return value.replaceAll('${workspaceFolder}', workspaceFolder.uri.fsPath)
 }
 
@@ -413,6 +391,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function isValidServerName(value: string): boolean {
+function isValidServerName(value: string) {
   return /^[A-Za-z0-9_-]+$/.test(value)
 }

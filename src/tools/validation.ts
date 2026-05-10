@@ -1,8 +1,8 @@
 import type { JsonObject } from '../types/tools.js'
 import { isAbsolute, resolve } from 'node:path'
 
-export function parseArgs(argsJson: string): JsonObject {
-  const parsed = JSON.parse(argsJson || '{}') as unknown
+export function parseArgs(argsJson: string) {
+  const parsed = JSON.parse(argsJson || '{}')
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('Tool arguments must be a JSON object.')
@@ -11,7 +11,7 @@ export function parseArgs(argsJson: string): JsonObject {
   return parsed as JsonObject
 }
 
-export function getString(args: JsonObject, key: string): string {
+export function getString(args: JsonObject, key: string) {
   const value = args[key]
 
   if (typeof value !== 'string') {
@@ -21,10 +21,7 @@ export function getString(args: JsonObject, key: string): string {
   return value
 }
 
-export function getOptionalBoolean(
-  args: JsonObject,
-  key: string,
-): boolean | undefined {
+export function getOptionalBoolean(args: JsonObject, key: string) {
   const value = args[key]
 
   if (value === undefined) {
@@ -38,10 +35,7 @@ export function getOptionalBoolean(
   return value
 }
 
-export function getOptionalNumber(
-  args: JsonObject,
-  key: string,
-): number | undefined {
+export function getOptionalNumber(args: JsonObject, key: string) {
   const value = args[key]
 
   if (value === undefined) {
@@ -55,10 +49,7 @@ export function getOptionalNumber(
   return value
 }
 
-export function getOptionalStringArray(
-  args: JsonObject,
-  key: string,
-): string[] | undefined {
+export function getOptionalStringArray(args: JsonObject, key: string) {
   const value = args[key]
 
   if (value === undefined) {
@@ -69,9 +60,9 @@ export function getOptionalStringArray(
     throw new Error(`${key} must be an array of strings.`)
   }
 
-  return value
+  return value as string[]
 }
 
-export function resolvePath(cwd: string, targetPath: string): string {
+export function resolvePath(cwd: string, targetPath: string) {
   return isAbsolute(targetPath) ? resolve(targetPath) : resolve(cwd, targetPath)
 }

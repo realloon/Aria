@@ -12,7 +12,7 @@ const props = defineProps<{
 
 const traceItems = computed(() => props.trace ?? [])
 
-function formatTraceSummary(): string {
+function formatTraceSummary() {
   if (!props.traceFinishedAt) {
     return 'Thinking'
   }
@@ -22,14 +22,14 @@ function formatTraceSummary(): string {
   return duration < 1000 ? 'Thought' : `Thought for ${formatDuration(duration)}`
 }
 
-function getDurationMs(): number {
+function getDurationMs() {
   const startedAt = props.traceStartedAt ?? Date.now()
   const finishedAt = props.traceFinishedAt ?? Date.now()
 
   return finishedAt - startedAt
 }
 
-function formatDuration(durationMs: number): string {
+function formatDuration(durationMs: number) {
   if (!Number.isFinite(durationMs) || durationMs < 0) {
     return '0s'
   }

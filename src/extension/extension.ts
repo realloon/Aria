@@ -85,7 +85,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {}
 
-async function showFimContext(): Promise<void> {
+async function showFimContext() {
   const editor = vscode.window.activeTextEditor
 
   if (!editor) {
