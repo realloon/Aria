@@ -1,7 +1,6 @@
-import { build, context, type BuildOptions } from 'esbuild'
+import { build, type BuildOptions } from 'esbuild'
 
 const production = process.argv.includes('--production')
-const watch = process.argv.includes('--watch')
 
 const config: BuildOptions = {
   banner: {
@@ -21,13 +20,6 @@ const config: BuildOptions = {
 }
 
 async function main() {
-  if (watch) {
-    const buildContext = await context(config)
-    await buildContext.watch()
-    console.log('Watching extension sources...')
-    return
-  }
-
   await build(config)
 }
 

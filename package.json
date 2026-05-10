@@ -17,11 +17,10 @@
     "vscode": "^1.92.0"
   },
   "scripts": {
-    "vscode:prepublish": "pnpm run compile:production",
+    "check-types": "tsc --noEmit",
     "compile": "tsc --noEmit && vite build --config src/webview/vite.config.ts && node esbuild.ts",
     "compile:production": "tsc --noEmit && vite build --config src/webview/vite.config.ts && node esbuild.ts --production",
-    "build:webview": "vite build --config src/webview/vite.config.ts",
-    "check-types": "tsc --noEmit",
+    "vscode:prepublish": "pnpm run compile:production",
     "build": "env -u npm_config_npm_globalconfig -u npm_config_verify_deps_before_run -u npm_config__jsr_registry node ./node_modules/@vscode/vsce/vsce package --no-dependencies"
   },
   "dependencies": {
@@ -138,7 +137,7 @@
     "keybindings": [
       {
         "command": "editor.action.inlineSuggest.trigger",
-        "key": "cmd+alt+k",
+        "key": "ctrl+alt+k",
         "mac": "cmd+alt+k",
         "when": "editorTextFocus"
       }
