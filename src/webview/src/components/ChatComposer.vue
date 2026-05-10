@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { nextTick, ref } from 'vue'
+import { ref, useTemplateRef, nextTick } from 'vue'
 
-const props = defineProps<{
+const { loading } = defineProps<{
   canSend: boolean
   loading: boolean
   models: string[]
@@ -9,43 +9,41 @@ const props = defineProps<{
   selectedModel: string
 }>()
 
-const input = defineModel<string>({ required: true })
-const textarea = ref<HTMLTextAreaElement>()
-const modelMenuOpen = ref(false)
-
 const emit = defineEmits<{
   choose: [option: string]
   send: []
   selectModel: [model: string]
 }>()
 
-async function submit(): Promise<void> {
+const input = defineModel<string>({ required: true })
+const textarea = useTemplateRef('textarea')
+const modelMenuOpen = ref(false)
+
+async function submit() {
   emit('send')
   modelMenuOpen.value = false
   await nextTick()
   textarea.value?.focus()
 }
 
-function onKeydown(event: KeyboardEvent): void {
+function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
     void submit()
   }
 }
 
-function toggleModelMenu(): void {
-  if (props.loading) {
-    return
-  }
+function toggleModelMenu() {
+  if (loading) return
 
   modelMenuOpen.value = !modelMenuOpen.value
 }
 
-function closeModelMenu(): void {
+function closeModelMenu() {
   modelMenuOpen.value = false
 }
 
-function selectModel(model: string): void {
+function selectModel(model: string) {
   emit('selectModel', model)
   closeModelMenu()
 }
