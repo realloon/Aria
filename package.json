@@ -1,9 +1,10 @@
 {
   "name": "aria-vscode-extension",
   "displayName": "Aria",
-  "description": "Programming agent extension scaffold for Aria.",
-  "version": "0.6.0",
+  "description": "Open, transparent coding agent",
+  "version": "0.6.1",
   "publisher": "Vortex",
+  "icon": "resources/aria.png",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/realloon/Aria.git"
