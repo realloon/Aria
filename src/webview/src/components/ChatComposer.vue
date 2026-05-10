@@ -10,7 +10,7 @@ const props = defineProps<{
 }>()
 
 const input = defineModel<string>({ required: true })
-const textarea = ref<HTMLTextAreaElement | null>(null)
+const textarea = ref<HTMLTextAreaElement>()
 const modelMenuOpen = ref(false)
 
 const emit = defineEmits<{
@@ -180,6 +180,24 @@ function selectModel(model: string): void {
   align-items: center;
   padding-inline: 8px 4px;
   padding-block-end: 4px;
+}
+
+.composer button {
+  border: 1px solid var(--vscode-button-border, transparent);
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 5px 8px;
+
+  &:hover {
+    background: var(--vscode-button-hoverBackground);
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
 }
 
 .model-picker {

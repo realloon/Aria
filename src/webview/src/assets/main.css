@@ -19,7 +19,7 @@
 }
 
 body {
-  margin: 0;
+  margin: unset;
 }
 
 p,
@@ -31,29 +31,4 @@ ol {
 button,
 textarea {
   font: inherit;
-}
-
-.composer button {
-  border: 1px solid var(--vscode-button-border, transparent);
-  color: var(--vscode-button-foreground);
-  background: var(--vscode-button-background);
-  border-radius: 4px;
-  cursor: pointer;
-  padding: 5px 8px;
-}
-
-.composer button:hover {
-  background: var(--vscode-button-hoverBackground);
-}
-
-.composer button:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
-.role {
-  margin-bottom: 5px;
-  color: var(--vscode-descriptionForeground);
-  font-size: 11px;
-  text-transform: uppercase;
 }

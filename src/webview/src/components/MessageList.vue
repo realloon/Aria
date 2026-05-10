@@ -8,9 +8,7 @@ defineProps<{
   messages: ChatMessage[]
 }>()
 
-const scrollHost = defineModel<HTMLElement | null>('scrollHost', {
-  required: true,
-})
+defineModel<HTMLElement | null>('scrollHost', { required: true })
 </script>
 
 <template>

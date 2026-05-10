@@ -13,7 +13,7 @@ export function useChat() {
   const messages = ref<ChatMessage[]>([])
   const chatModels = ref<string[]>([])
   const selectedChatModel = ref('')
-  const scrollHost = ref<HTMLElement | null>(null)
+  const scrollHost = ref<HTMLElement>()
   const userOptions = ref<string[]>([])
 
   const canSend = computed(
