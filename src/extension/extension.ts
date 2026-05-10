@@ -66,11 +66,7 @@ export function activate(context: vscode.ExtensionContext) {
     )
 
   context.subscriptions.push(
-    {
-      dispose: () => {
-        void chatViewProvider.dispose()
-      },
-    },
+    chatViewProvider,
     newThreadCommand,
     showHistoryCommand,
     deleteThreadCommand,

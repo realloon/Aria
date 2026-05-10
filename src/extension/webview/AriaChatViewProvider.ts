@@ -58,7 +58,9 @@ type ToolContext = BuiltinToolContext & {
   workspaceFolder: vscode.WorkspaceFolder
 }
 
-export class AriaChatViewProvider implements vscode.WebviewViewProvider {
+export class AriaChatViewProvider
+  implements vscode.WebviewViewProvider, vscode.Disposable
+{
   static readonly viewType = 'aria.chatView'
   private static readonly threadStateKey = 'aria.threadState'
 
@@ -88,8 +90,10 @@ export class AriaChatViewProvider implements vscode.WebviewViewProvider {
     await vscode.window.showTextDocument(document, { preview: false })
   }
 
-  async dispose() {
-    await this.mcpToolManager.dispose()
+  dispose() {
+    void this.mcpToolManager.dispose().catch(error => {
+      console.error('Failed to dispose MCP tool manager.', error)
+    })
   }
 
   async createNewThread() {
