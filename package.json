@@ -1,8 +1,9 @@
 {
-  "name": "aria-vscode-extension",
+  "name": "aria",
   "displayName": "Aria",
   "description": "Open, transparent coding agent",
   "version": "0.6.1",
+  "author": "Vortex",
   "publisher": "Vortex",
   "icon": "resources/aria.png",
   "repository": {
