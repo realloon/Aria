@@ -1,6 +1,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import type {
   ChatTraceItem,
+  ChatModelOption,
   ChatMessage,
   ExtensionMessage,
 } from '../../../types/chat.js'
@@ -11,7 +12,7 @@ export function useChat() {
   const input = ref('')
   const loading = ref(false)
   const messages = ref<ChatMessage[]>([])
-  const chatModels = ref<string[]>([])
+  const chatModels = ref<ChatModelOption[]>([])
   const selectedChatModel = ref('')
   const scrollHost = ref<HTMLElement>()
   const userOptions = ref<string[]>([])

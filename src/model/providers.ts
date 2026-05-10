@@ -7,6 +7,10 @@ export const modelProviders = {
     label: 'DeepSeek',
     baseURL: 'https://api.deepseek.com/beta',
     chatModels: ['deepseek-v4-pro', 'deepseek-v4-flash'],
+    chatModelDisplayNames: {
+      'deepseek-v4-pro': 'v4-pro',
+      'deepseek-v4-flash': 'v4-flash',
+    },
     fimModel: 'deepseek-v4-flash',
     reasoningMode: 'deepseek',
   },
@@ -15,6 +19,9 @@ export const modelProviders = {
     label: 'OpenAI',
     baseURL: 'https://api.openai.com/v1',
     chatModels: ['gpt-5.3-codex'],
+    chatModelDisplayNames: {
+      'gpt-5.3-codex': '5.3 Codex',
+    },
     reasoningMode: 'openai',
   },
   'openai-compatible': {
@@ -22,6 +29,9 @@ export const modelProviders = {
     label: 'OpenAI Compatible',
     baseURL: '',
     chatModels: ['gpt-5.3-codex'],
+    chatModelDisplayNames: {
+      'gpt-5.3-codex': '5.3 Codex',
+    },
     reasoningMode: 'openai',
   },
 } as const satisfies Record<ModelProviderId, ModelProvider>

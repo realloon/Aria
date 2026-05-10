@@ -17,6 +17,7 @@ export interface ModelProvider {
   label: string
   baseURL: string
   chatModels: string[]
+  chatModelDisplayNames?: Record<string, string>
   fimModel?: string
   reasoningMode: 'openai' | 'deepseek'
 }

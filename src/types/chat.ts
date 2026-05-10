@@ -20,6 +20,11 @@ export interface ChatMessage {
   text: string
 }
 
+export interface ChatModelOption {
+  id: string
+  label: string
+}
+
 export type WebviewMessage =
   | { type: 'ready' }
   | { type: 'sendMessage'; text: string }
@@ -32,7 +37,7 @@ export type ExtensionMessage =
     }
   | {
       type: 'chatModelState'
-      models: string[]
+      models: ChatModelOption[]
       selectedModel: string
     }
   | { type: 'assistantMessageStart' }

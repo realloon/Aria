@@ -42,6 +42,15 @@ export function parseReasoningEffort(
   }
 }
 
+export function getChatModelDisplayName(
+  provider: ModelProvider,
+  model: string,
+) {
+  const displayName = provider.chatModelDisplayNames?.[model]?.trim()
+
+  return displayName || model
+}
+
 export function getSelectedChatModel(
   context: vscode.ExtensionContext,
   providerId: ModelProviderId,

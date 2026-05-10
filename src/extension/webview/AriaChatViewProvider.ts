@@ -17,6 +17,7 @@ import type {
 } from '../../types/model.js'
 import {
   chatModelStateKey,
+  getChatModelDisplayName,
   getProviderApiKey,
   getProviderBaseURL,
   getSelectedChatModel,
@@ -606,7 +607,10 @@ export class AriaChatViewProvider
 
     await this.postMessage({
       type: 'chatModelState',
-      models: provider.chatModels,
+      models: provider.chatModels.map(model => ({
+        id: model,
+        label: getChatModelDisplayName(provider, model),
+      })),
       selectedModel,
     })
   }
