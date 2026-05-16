@@ -21,12 +21,6 @@ type AssistantMessageWithReasoning = ChatCompletionAssistantMessageParam & {
   reasoning_content?: string
 }
 
-interface ChatRoundResult {
-  assistantMessage: ChatCompletionAssistantMessageParam
-  finishReason?: NonNullable<ChatCompletionChunk.Choice['finish_reason']>
-  toolCalls: ChatCompletionMessageFunctionToolCall[]
-}
-
 export async function runModelChat(input: RunModelChatInput) {
   const client = createModelClient(input)
   const provider = modelProviders[input.providerId]
