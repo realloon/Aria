@@ -19,11 +19,9 @@ const config: BuildOptions = {
   target: 'node20',
 }
 
-async function main() {
+try {
   await build(config)
-}
-
-main().catch((error: unknown) => {
-  console.error(error)
+} catch (err: unknown) {
+  console.error(err)
   process.exit(1)
-})
+}
