@@ -2,28 +2,25 @@
 
 Aria is a coding agent extension for VS Code.
 
-## Feature
+## Features
 
 ### Agent Chat
 
 Chat with Aria from the Activity Bar.
 
-Aria can read and edit files, apply patches, run commands, and ask for input
-when a task needs a decision.
+Aria can read and edit files, apply patches, run commands, and ask for input when a task needs a decision.
 
 ### Auto Completion
 
 Inline FIM completion for the active editor.
 
-Trigger VS Code inline suggestions with `Cmd+Alt+K`, or use the editor's normal
-inline suggestion flow.
+Trigger VS Code inline suggestions with `Cmd+Alt+K`, or use the editor's normal inline suggestion flow.
 
 ### Generate Commit
 
 Generate a commit message from staged changes.
 
-If nothing is staged, Aria uses working tree changes and a small summary of
-untracked files.
+If nothing is staged, Aria uses working tree changes and a small summary of untracked files.
 
 ## Configuration
 
