@@ -1,8 +1,11 @@
 import * as vscode from 'vscode'
-import { registerGenerateCommitMessageCommand } from './gitCommitMessage.js'
+import { generateCommitMessage } from './gitCommitMessage.js'
 
 export function activate(context: vscode.ExtensionContext) {
-  const generateCommitMessageCommand = registerGenerateCommitMessageCommand()
-
-  context.subscriptions.push(generateCommitMessageCommand)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'aria.generateCommitMessage',
+      generateCommitMessage,
+    ),
+  )
 }
