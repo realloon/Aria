@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import type { ModelProviderId, ReasoningEffort } from '../types/model.js'
+import type { ModelProviderId } from '../types/model.js'
 
 export function getProviderApiKey(
   config: vscode.WorkspaceConfiguration,
