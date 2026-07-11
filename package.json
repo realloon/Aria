@@ -2,7 +2,7 @@
   "name": "aria",
   "displayName": "Aria",
   "description": "AI-powered commit message generation",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "author": "Vortex",
   "publisher": "Vortex",
   "icon": "resources/aria.png",
