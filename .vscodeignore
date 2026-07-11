@@ -10,3 +10,4 @@ src/**
 .gitignore
 tsconfig.json
 esbuild.ts
+pnpm-workspace.yaml

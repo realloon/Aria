@@ -1,13 +1,15 @@
 import * as vscode from 'vscode'
 import { basename } from 'node:path'
 import { relative, sep } from 'node:path'
-import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
-import { parseModelProviderId, runModelChat } from '../model/index.js'
-import type { ChatReasoningEffort, ModelProviderId } from '../types/model.js'
+import {
+  createModelClient,
+  modelProviders,
+  parseModelProviderId,
+} from '../model/providers.js'
+import type { ModelProviderId, ReasoningEffort } from '../types/model.js'
 import {
   getProviderApiKey,
   getProviderBaseURL,
-  getSelectedChatModel,
   parseReasoningEffort,
 } from '../utils/modelSettings.js'
 
@@ -54,12 +56,12 @@ interface GitExtension {
   getAPI(version: 1): GitApi
 }
 
-interface ChatModelSettings {
+interface CommitModelSettings {
   apiKey: string
   baseURL?: string
   model: string
   providerId: ModelProviderId
-  reasoningEffort: ChatReasoningEffort
+  reasoningEffort: ReasoningEffort
 }
 
 interface ChangeContext {
@@ -67,17 +69,15 @@ interface ChangeContext {
   mode: 'staged' | 'working tree'
 }
 
-export function registerGenerateCommitMessageCommand(
-  context: vscode.ExtensionContext,
-) {
+export function registerGenerateCommitMessageCommand() {
   return vscode.commands.registerCommand('aria.generateCommitMessage', () =>
-    handleGenerateCommitMessage(context),
+    handleGenerateCommitMessage(),
   )
 }
 
-async function handleGenerateCommitMessage(context: vscode.ExtensionContext) {
+async function handleGenerateCommitMessage() {
   try {
-    await generateCommitMessage(context)
+    await generateCommitMessage()
   } catch (error) {
     await vscode.window.showErrorMessage(
       error instanceof Error
@@ -87,7 +87,7 @@ async function handleGenerateCommitMessage(context: vscode.ExtensionContext) {
   }
 }
 
-async function generateCommitMessage(context: vscode.ExtensionContext) {
+async function generateCommitMessage() {
   const generatedMode = await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
@@ -105,7 +105,7 @@ async function generateCommitMessage(context: vscode.ExtensionContext) {
         return undefined
       }
 
-      const settings = getChatModelSettings(context)
+      const settings = getCommitModelSettings()
       const commitMessage = await requestCommitMessage(settings, changeContext)
 
       repository.inputBox.value = commitMessage
@@ -283,21 +283,24 @@ async function buildUntrackedSummary(repository: GitRepository) {
 }
 
 async function requestCommitMessage(
-  settings: ChatModelSettings,
+  settings: CommitModelSettings,
   changeContext: ChangeContext,
 ) {
-  const messages = await runModelChat({
-    providerId: settings.providerId,
-    apiKey: settings.apiKey,
-    baseURL: settings.baseURL,
+  const client = createModelClient(settings)
+  const response = await client.chat.completions.create({
     model: settings.model,
-    reasoningEffort: settings.reasoningEffort,
-    messages: [],
-    systemPrompt: buildCommitSystemPrompt(),
-    userText: `Generate a commit message for these ${changeContext.mode} changes:\n\n${changeContext.diff}`,
+    messages: [
+      { role: 'system', content: buildCommitSystemPrompt() },
+      {
+        role: 'user',
+        content: `Generate a commit message for these ${changeContext.mode} changes:\n\n${changeContext.diff}`,
+      },
+    ],
+    reasoning_effort: settings.reasoningEffort,
   })
-  const content = getLastAssistantText(messages)
-  const commitMessage = normalizeCommitMessage(content)
+  const commitMessage = normalizeCommitMessage(
+    response.choices[0]?.message.content ?? '',
+  )
 
   if (!commitMessage) {
     throw new Error('Model returned an empty commit message.')
@@ -306,7 +309,7 @@ async function requestCommitMessage(
   return commitMessage
 }
 
-function getChatModelSettings(context: vscode.ExtensionContext) {
+function getCommitModelSettings(): CommitModelSettings {
   const config = vscode.workspace.getConfiguration('aria.api')
   const providerId = parseModelProviderId(
     config.get<string>('provider')?.trim(),
@@ -327,11 +330,11 @@ function getChatModelSettings(context: vscode.ExtensionContext) {
     providerId,
     apiKey,
     baseURL,
-    model: getSelectedChatModel(context, providerId),
+    model: modelProviders[providerId].commitMessageModel,
     reasoningEffort: parseReasoningEffort(
       config.get<string>('reasoningEffort')?.trim(),
     ),
-  } as ChatModelSettings
+  } as CommitModelSettings
 }
 
 // todo: extract
@@ -345,32 +348,6 @@ Rules:
 - Use the most specific type from feat, fix, refactor, docs, test, style, build, ci, perf, chore.
 - Prefer English unless the code changes are explicitly Chinese-language user-facing text.
 - Do not mention files unless the filename is the product-visible concept.`
-}
-
-function getLastAssistantText(messages: ChatCompletionMessageParam[]) {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index]
-
-    if (message?.role !== 'assistant') {
-      continue
-    }
-
-    const content = message.content
-
-    if (typeof content === 'string') {
-      return content
-    }
-
-    if (Array.isArray(content)) {
-      return content
-        .map(item =>
-          'text' in item && typeof item.text === 'string' ? item.text : '',
-        )
-        .join('')
-    }
-  }
-
-  return ''
 }
 
 function normalizeCommitMessage(value: string) {

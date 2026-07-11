@@ -1,4 +1,5 @@
 import { build, type BuildOptions } from 'esbuild'
+import { rm } from 'node:fs/promises'
 
 const production = process.argv.includes('--production')
 
@@ -19,9 +20,5 @@ const config: BuildOptions = {
   target: 'node20',
 }
 
-try {
-  await build(config)
-} catch (err: unknown) {
-  console.error(err)
-  process.exit(1)
-}
+await rm('dist', { recursive: true, force: true })
+await build(config)

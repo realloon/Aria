@@ -3,36 +3,16 @@ import type { ModelProvider, ModelProviderId } from '../types/model.js'
 
 export const modelProviders = {
   deepseek: {
-    id: 'deepseek',
-    label: 'DeepSeek',
     baseURL: 'https://api.deepseek.com/beta',
-    chatModels: ['deepseek-v4-pro', 'deepseek-v4-flash'],
-    chatModelDisplayNames: {
-      'deepseek-v4-pro': 'v4-pro',
-      'deepseek-v4-flash': 'v4-flash',
-    },
-    fimModel: 'deepseek-v4-flash',
-    reasoningMode: 'deepseek',
+    commitMessageModel: 'deepseek-v4-pro',
   },
   openai: {
-    id: 'openai',
-    label: 'OpenAI',
     baseURL: 'https://api.openai.com/v1',
-    chatModels: ['gpt-5.3-codex'],
-    chatModelDisplayNames: {
-      'gpt-5.3-codex': '5.3 Codex',
-    },
-    reasoningMode: 'openai',
+    commitMessageModel: 'gpt-5.3-codex',
   },
   'openai-compatible': {
-    id: 'openai-compatible',
-    label: 'OpenAI Compatible',
     baseURL: '',
-    chatModels: ['gpt-5.3-codex'],
-    chatModelDisplayNames: {
-      'gpt-5.3-codex': '5.3 Codex',
-    },
-    reasoningMode: 'openai',
+    commitMessageModel: 'gpt-5.3-codex',
   },
 } as const satisfies Record<ModelProviderId, ModelProvider>
 
@@ -47,7 +27,7 @@ export function parseModelProviderId(value: string | undefined) {
     case 'openai-compatible':
       return 'openai-compatible'
     default:
-      throw new Error('Configure aria.api.provider before sending a message.')
+      throw new Error('Configure aria.api.provider.')
   }
 }
 

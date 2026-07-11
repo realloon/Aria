@@ -1,12 +1,5 @@
 import * as vscode from 'vscode'
-import { modelProviders } from '../model/index.js'
-import type {
-  ChatReasoningEffort,
-  ModelProvider,
-  ModelProviderId,
-} from '../types/model.js'
-
-export const chatModelStateKey = 'aria.chatModel'
+import type { ModelProviderId, ReasoningEffort } from '../types/model.js'
 
 export function getProviderApiKey(
   config: vscode.WorkspaceConfiguration,
@@ -31,7 +24,6 @@ export function parseReasoningEffort(
   errorMessage = 'Configure aria.api.reasoningEffort.',
 ) {
   switch (value) {
-    case 'minimal':
     case 'low':
     case 'medium':
     case 'high':
@@ -40,27 +32,4 @@ export function parseReasoningEffort(
     default:
       throw new Error(errorMessage)
   }
-}
-
-export function getChatModelDisplayName(
-  provider: ModelProvider,
-  model: string,
-) {
-  const displayName = provider.chatModelDisplayNames?.[model]?.trim()
-
-  return displayName || model
-}
-
-export function getSelectedChatModel(
-  context: vscode.ExtensionContext,
-  providerId: ModelProviderId,
-) {
-  const provider: ModelProvider = modelProviders[providerId]
-  const selectedModels =
-    context.workspaceState.get<Record<string, string>>(chatModelStateKey) ?? {}
-  const selectedModel = selectedModels[providerId]
-
-  return selectedModel && provider.chatModels.includes(selectedModel)
-    ? selectedModel
-    : provider.chatModels[0]!
 }

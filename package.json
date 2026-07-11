@@ -1,7 +1,7 @@
 {
   "name": "aria",
   "displayName": "Aria",
-  "description": "Open, transparent coding agent",
+  "description": "AI-powered commit message generation",
   "version": "0.6.2",
   "author": "Vortex",
   "publisher": "Vortex",
@@ -18,27 +18,20 @@
   },
   "scripts": {
     "check-types": "tsc --noEmit",
-    "compile": "tsc --noEmit && vite build --config src/webview/vite.config.ts && node esbuild.ts",
-    "compile:production": "tsc --noEmit && vite build --config src/webview/vite.config.ts && node esbuild.ts --production",
+    "compile": "tsc --noEmit && node esbuild.ts",
+    "compile:production": "tsc --noEmit && node esbuild.ts --production",
     "vscode:prepublish": "pnpm run compile:production",
     "build": "env -u npm_config_npm_globalconfig -u npm_config_verify_deps_before_run -u npm_config__jsr_registry node ./node_modules/@vscode/vsce/vsce package --no-dependencies"
   },
   "dependencies": {
-    "@cfworker/json-schema": "^4.1.1",
-    "@modelcontextprotocol/client": "2.0.0-alpha.2",
-    "markdown-it": "^14.1.1",
     "openai": "^6.37.0"
   },
   "devDependencies": {
-    "@types/markdown-it": "^14.1.2",
     "@types/node": "^20.19.40",
     "@types/vscode": "1.92.0",
-    "@vitejs/plugin-vue": "^6.0.6",
     "@vscode/vsce": "^3.9.1",
     "esbuild": "^0.28.0",
-    "typescript": "^6.0.3",
-    "vite": "^8.0.11",
-    "vue": "^3.5.34"
+    "typescript": "^6.0.3"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -88,102 +81,23 @@
             "xhigh"
           ],
           "default": "high",
-          "description": "Reasoning effort sent to the chat model."
-        },
-        "aria.fim.enabled": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable FIM inline completions in the editor."
-        },
-        "aria.fim.maxTokens": {
-          "type": "number",
-          "default": 128,
-          "minimum": 64,
-          "maximum": 4096,
-          "description": "Maximum tokens generated for one FIM completion."
+          "description": "Reasoning effort sent to the commit-message model."
         }
       }
     },
     "commands": [
-      {
-        "command": "aria.newThread",
-        "title": "Aria: New Thread",
-        "icon": "$(add)"
-      },
-      {
-        "command": "aria.showHistory",
-        "title": "Aria: History",
-        "icon": "$(history)"
-      },
-      {
-        "command": "aria.deleteThread",
-        "title": "Aria: Delete Thread",
-        "icon": "$(trash)"
-      },
-      {
-        "command": "aria.showSystemPrompt",
-        "title": "Aria: Show System Prompt"
-      },
-      {
-        "command": "aria.showFimContext",
-        "title": "Aria: Show FIM Context"
-      },
       {
         "command": "aria.generateCommitMessage",
         "title": "Aria: Generate Commit Message",
         "icon": "$(sparkle)"
       }
     ],
-    "keybindings": [
-      {
-        "command": "editor.action.inlineSuggest.trigger",
-        "key": "ctrl+alt+k",
-        "mac": "cmd+alt+k",
-        "when": "editorTextFocus"
-      }
-    ],
     "menus": {
-      "view/title": [
-        {
-          "command": "aria.newThread",
-          "when": "view == aria.chatView",
-          "group": "navigation@1"
-        },
-        {
-          "command": "aria.deleteThread",
-          "when": "view == aria.chatView",
-          "group": "navigation@2"
-        },
-        {
-          "command": "aria.showHistory",
-          "when": "view == aria.chatView",
-          "group": "navigation@3"
-        }
-      ],
       "scm/title": [
         {
           "command": "aria.generateCommitMessage",
           "when": "scmProvider == git",
           "group": "navigation@1"
-        }
-      ]
-    },
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "aria",
-          "title": "Aria",
-          "icon": "resources/aria.svg"
-        }
-      ]
-    },
-    "views": {
-      "aria": [
-        {
-          "id": "aria.chatView",
-          "name": "Chat",
-          "icon": "resources/aria.svg",
-          "type": "webview"
         }
       ]
     }

@@ -4,7 +4,7 @@
     {
       "label": "pnpm: compile",
       "type": "shell",
-      "command": "${env:HOME}/Library/pnpm/pnpm",
+      "command": "pnpm",
       "args": ["run", "compile"],
       "group": "build",
       "problemMatcher": "$tsc"
