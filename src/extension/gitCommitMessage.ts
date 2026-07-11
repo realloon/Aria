@@ -1,17 +1,8 @@
 import * as vscode from 'vscode'
 import { basename } from 'node:path'
 import { relative, sep } from 'node:path'
-import {
-  createModelClient,
-  modelProviders,
-  parseModelProviderId,
-} from '../model/providers.js'
-import type { ModelProviderId, ReasoningEffort } from '../types/model.js'
-import {
-  getProviderApiKey,
-  getProviderBaseURL,
-  parseReasoningEffort,
-} from '../utils/modelSettings.js'
+import { createModelClient, deepseek } from '../model/providers.js'
+import type { ReasoningEffort } from '../model/providers.js'
 
 const maxDiffCharacters = 60_000
 const maxUntrackedFiles = 10
@@ -58,9 +49,7 @@ interface GitExtension {
 
 interface CommitModelSettings {
   apiKey: string
-  baseURL?: string
   model: string
-  providerId: ModelProviderId
   reasoningEffort: ReasoningEffort
 }
 
@@ -286,7 +275,7 @@ async function requestCommitMessage(
   settings: CommitModelSettings,
   changeContext: ChangeContext,
 ) {
-  const client = createModelClient(settings)
+  const client = createModelClient(settings.apiKey)
   const response = await client.chat.completions.create({
     model: settings.model,
     messages: [
@@ -311,30 +300,31 @@ async function requestCommitMessage(
 
 function getCommitModelSettings(): CommitModelSettings {
   const config = vscode.workspace.getConfiguration('aria.api')
-  const providerId = parseModelProviderId(
-    config.get<string>('provider')?.trim(),
-  )
-  const apiKey = getProviderApiKey(config, providerId)
+  const apiKey = config.get<string>('apiKey')?.trim() ?? ''
 
   if (!apiKey) {
-    throw new Error(`Configure aria.api.apiKeys.${providerId}.`)
-  }
-
-  const baseURL = getProviderBaseURL(config, providerId)
-
-  if (providerId === 'openai-compatible' && !baseURL) {
-    throw new Error('Configure aria.api.baseURLs.openai-compatible.')
+    throw new Error('Configure aria.api.apiKey.')
   }
 
   return {
-    providerId,
     apiKey,
-    baseURL,
-    model: modelProviders[providerId].commitMessageModel,
+    model: deepseek.commitMessageModel,
     reasoningEffort: parseReasoningEffort(
       config.get<string>('reasoningEffort')?.trim(),
     ),
   } as CommitModelSettings
+}
+
+function parseReasoningEffort(value: string | undefined): ReasoningEffort {
+  switch (value) {
+    case 'low':
+    case 'medium':
+    case 'high':
+    case 'xhigh':
+      return value
+    default:
+      throw new Error('Configure aria.api.reasoningEffort.')
+  }
 }
 
 // todo: extract

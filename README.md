@@ -10,15 +10,9 @@ If nothing is staged, Aria uses working tree changes and a small summary of untr
 
 ## Configuration
 
-Aria supports DeepSeek, OpenAI, and OpenAI-compatible providers.
-
 Set these in VS Code settings:
 
-- `aria.api.provider`
-- `aria.api.apiKeys.deepseek`
-- `aria.api.apiKeys.openai`
-- `aria.api.apiKeys.openai-compatible`
-- `aria.api.baseURLs.openai-compatible`
+- `aria.api.apiKey`
 - `aria.api.reasoningEffort`
 
 ## Development

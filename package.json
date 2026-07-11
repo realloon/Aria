@@ -42,35 +42,10 @@
     "configuration": {
       "title": "Aria",
       "properties": {
-        "aria.api.provider": {
-          "type": "string",
-          "enum": [
-            "deepseek",
-            "openai",
-            "openai-compatible"
-          ],
-          "default": "deepseek",
-          "description": "Model provider used by Aria."
-        },
-        "aria.api.apiKeys.deepseek": {
+        "aria.api.apiKey": {
           "type": "string",
           "default": "",
           "description": "DeepSeek API key used by Aria."
-        },
-        "aria.api.apiKeys.openai": {
-          "type": "string",
-          "default": "",
-          "description": "OpenAI API key used by Aria."
-        },
-        "aria.api.apiKeys.openai-compatible": {
-          "type": "string",
-          "default": "",
-          "description": "OpenAI-compatible API key used by Aria."
-        },
-        "aria.api.baseURLs.openai-compatible": {
-          "type": "string",
-          "default": "",
-          "description": "OpenAI-compatible API base URL used by Aria."
         },
         "aria.api.reasoningEffort": {
           "type": "string",
