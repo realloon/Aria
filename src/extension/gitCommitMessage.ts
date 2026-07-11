@@ -1,12 +1,12 @@
 import * as vscode from 'vscode'
 import { basename } from 'node:path'
 import { relative, sep } from 'node:path'
-import { createModelClient, deepseek } from '../model/providers.js'
-import type { ReasoningEffort } from '../model/providers.js'
 
 const maxDiffCharacters = 60_000
 const maxUntrackedFiles = 10
 const maxUntrackedFileCharacters = 4_000
+const deepseekApiURL = 'https://api.deepseek.com/beta/chat/completions'
+const deepseekCommitMessageModel = 'deepseek-v4-pro'
 
 interface GitInputBox {
   value: string
@@ -47,15 +47,17 @@ interface GitExtension {
   getAPI(version: 1): GitApi
 }
 
-interface CommitModelSettings {
-  apiKey: string
-  model: string
-  reasoningEffort: ReasoningEffort
-}
-
 interface ChangeContext {
   diff: string
   mode: 'staged' | 'working tree'
+}
+
+interface DeepSeekResponse {
+  choices?: Array<{
+    message?: {
+      content?: string | null
+    }
+  }>
 }
 
 export function registerGenerateCommitMessageCommand() {
@@ -94,8 +96,8 @@ async function generateCommitMessage() {
         return undefined
       }
 
-      const settings = getCommitModelSettings()
-      const commitMessage = await requestCommitMessage(settings, changeContext)
+      const apiKey = getCommitApiKey()
+      const commitMessage = await requestCommitMessage(apiKey, changeContext)
 
       repository.inputBox.value = commitMessage
       await vscode.commands.executeCommand('workbench.view.scm')
@@ -272,23 +274,36 @@ async function buildUntrackedSummary(repository: GitRepository) {
 }
 
 async function requestCommitMessage(
-  settings: CommitModelSettings,
+  apiKey: string,
   changeContext: ChangeContext,
 ) {
-  const client = createModelClient(settings.apiKey)
-  const response = await client.chat.completions.create({
-    model: settings.model,
-    messages: [
-      { role: 'system', content: buildCommitSystemPrompt() },
-      {
-        role: 'user',
-        content: `Generate a commit message for these ${changeContext.mode} changes:\n\n${changeContext.diff}`,
-      },
-    ],
-    reasoning_effort: settings.reasoningEffort,
+  const response = await fetch(deepseekApiURL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: deepseekCommitMessageModel,
+      messages: [
+        { role: 'system', content: buildCommitSystemPrompt() },
+        {
+          role: 'user',
+          content: `Generate a commit message for these ${changeContext.mode} changes:\n\n${changeContext.diff}`,
+        },
+      ],
+    }),
   })
+
+  if (!response.ok) {
+    throw new Error(
+      `DeepSeek request failed (${response.status}): ${await response.text()}`,
+    )
+  }
+
+  const body = (await response.json()) as DeepSeekResponse
   const commitMessage = normalizeCommitMessage(
-    response.choices[0]?.message.content ?? '',
+    body.choices?.[0]?.message?.content ?? '',
   )
 
   if (!commitMessage) {
@@ -298,7 +313,7 @@ async function requestCommitMessage(
   return commitMessage
 }
 
-function getCommitModelSettings(): CommitModelSettings {
+function getCommitApiKey() {
   const config = vscode.workspace.getConfiguration('aria.api')
   const apiKey = config.get<string>('apiKey')?.trim() ?? ''
 
@@ -306,25 +321,7 @@ function getCommitModelSettings(): CommitModelSettings {
     throw new Error('Configure aria.api.apiKey.')
   }
 
-  return {
-    apiKey,
-    model: deepseek.commitMessageModel,
-    reasoningEffort: parseReasoningEffort(
-      config.get<string>('reasoningEffort')?.trim(),
-    ),
-  } as CommitModelSettings
-}
-
-function parseReasoningEffort(value: string | undefined): ReasoningEffort {
-  switch (value) {
-    case 'low':
-    case 'medium':
-    case 'high':
-    case 'xhigh':
-      return value
-    default:
-      throw new Error('Configure aria.api.reasoningEffort.')
-  }
+  return apiKey
 }
 
 // todo: extract

@@ -13,7 +13,6 @@ If nothing is staged, Aria uses working tree changes and a small summary of untr
 Set these in VS Code settings:
 
 - `aria.api.apiKey`
-- `aria.api.reasoningEffort`
 
 ## Development
 
